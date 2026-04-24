@@ -1,0 +1,33 @@
+# Secrets — never commit
+.env
+
+# Runtime data (gitignored per architecture)
+data/raw/
+data/summaries/
+data/artifacts/
+data/pulse.db
+data/pulse.db-shm
+data/pulse.db-wal
+
+# Embedding cache
+data/embedding_cache/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# uv
+.uv/
+
+# OS
+.DS_Store
+Thumbs.db

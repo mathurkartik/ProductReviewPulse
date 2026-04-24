@@ -1,0 +1,4 @@
+# Runtime data directories — contents are gitignored.
+# raw/      — jsonl audit files from ingestion (Phase 1)
+# summaries/ — PulseSummary JSON per run (Phase 3)
+# artifacts/ — rendered doc requests + email HTML (Phase 4)

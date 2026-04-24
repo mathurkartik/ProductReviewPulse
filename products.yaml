@@ -1,0 +1,18 @@
+products:
+  - key: groww
+    display_name: Groww
+    app_store_id: "1404871703"
+    play_store_id: com.nextbillion.groww
+    recipients:
+      to: []
+      cc: []
+      bcc: []
+
+defaults:
+  window_weeks: 10
+  embedding_model: bge-small-en-v1.5
+  llm_provider: groq
+  llm_model: llama-3.3-70b-versatile
+  max_llm_cost_usd_per_run: 0.50
+  hdbscan_min_cluster_size: 8
+  confirm_send: false
