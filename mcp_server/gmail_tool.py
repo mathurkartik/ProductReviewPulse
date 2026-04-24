@@ -1,0 +1,125 @@
+import logging
+import base64
+from email.mime.text import MIMEText
+from datetime import datetime
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+from auth import get_creds
+
+# ---------------- LOGGING SETUP ---------------- #
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
+logger = logging.getLogger(__name__)
+
+
+# ---------------- MESSAGE BUILDER ---------------- #
+def create_message(to: str, subject: str, body: str):
+    """
+    Creates a base64 encoded email message.
+    """
+
+    try:
+        message = MIMEText(body)
+        message["to"] = to
+        message["subject"] = subject
+
+        raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
+
+        return {"raw": raw}
+
+    except Exception as e:
+        logger.error(f"Error creating message: {e}")
+        raise
+
+
+# ---------------- MAIN FUNCTION ---------------- #
+def create_email_draft(to: str, subject: str, body: str):
+    """
+    Creates a Gmail draft.
+
+    Args:
+        to (str): Recipient email
+        subject (str): Email subject
+        body (str): Email body
+
+    Returns:
+        dict: status + message
+    """
+
+    try:
+        logger.info("Starting create_email_draft")
+
+        # -------- INPUT VALIDATION -------- #
+        if not to or not subject or not body:
+            logger.error("Missing required email fields")
+
+            return {
+                "status": "error",
+                "message": "to, subject, and body are required"
+            }
+
+        # -------- FORMAT BODY -------- #
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        formatted_body = f"""
+[{timestamp}]
+
+{body}
+"""
+
+        # -------- AUTH -------- #
+        creds = get_creds()
+        logger.info("Credentials loaded")
+
+        # -------- INIT SERVICE -------- #
+        service = build("gmail", "v1", credentials=creds)
+        logger.info("Gmail service initialized")
+
+        # -------- CREATE MESSAGE -------- #
+        message = create_message(to, subject, formatted_body)
+
+        # -------- EXECUTE API CALL -------- #
+        try:
+            draft = service.users().drafts().create(
+                userId="me",
+                body={"message": message}
+            ).execute()
+
+            logger.info("Email draft created successfully")
+
+            return {
+                "status": "success",
+                "message": "Draft created",
+                "draft_id": draft.get("id")
+            }
+
+        except HttpError as e:
+            logger.error(f"Gmail API error: {e}")
+
+            return {
+                "status": "error",
+                "message": "Gmail API error",
+                "details": str(e)
+            }
+
+        except Exception as e:
+            logger.error(f"Execution error: {e}")
+
+            return {
+                "status": "error",
+                "message": "Failed during draft creation",
+                "details": str(e)
+            }
+
+    # -------- FALLBACK ERROR -------- #
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+
+        return {
+            "status": "error",
+            "message": "Unexpected error occurred",
+            "details": str(e)
+        }
