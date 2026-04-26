@@ -1,10 +1,12 @@
 import hashlib
+import json
 import re
 from collections.abc import Generator
 from datetime import UTC, datetime
 
 import httpx
 import structlog
+from bs4 import BeautifulSoup
 
 from agent.ingestion.filters import is_valid_review
 from agent.ingestion.models import RawReview
@@ -102,9 +104,6 @@ def fetch_appstore_reviews(
 
     # 2. Fallback: Scrape HTML if RSS was empty
     if not found_any:
-        import json
-        from bs4 import BeautifulSoup
-
         url = f"https://apps.apple.com/in/app/reviews/id{app_store_id}"
         log.info("ingest.appstore.fallback.start", url=url)
         try:
