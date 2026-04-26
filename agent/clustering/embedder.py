@@ -55,9 +55,7 @@ def batch_embed_reviews(
                 (row["id"],),
             ).fetchone()
             if cached:
-                embeddings[row["id"]] = _blob_to_vector(
-                    cached["embedding"], provider.dimensions
-                )
+                embeddings[row["id"]] = _blob_to_vector(cached["embedding"], provider.dimensions)
             else:
                 to_embed.append(row)
 

@@ -13,13 +13,19 @@ from agent.ingestion.pii import scrub_pii
 log = structlog.get_logger()
 
 
-def fetch_appstore_reviews(product_key: str, app_store_id: str, since: datetime) -> Generator[RawReview, None, None]:
-    client = httpx.Client(timeout=10.0, follow_redirects=True, headers={
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
-    })
-    
+def fetch_appstore_reviews(
+    product_key: str, app_store_id: str, since: datetime
+) -> Generator[RawReview, None, None]:
+    client = httpx.Client(
+        timeout=10.0,
+        follow_redirects=True,
+        headers={
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+        },
+    )
+
     found_any = False
-    
+
     # 1. Try iTunes RSS (up to 10 pages)
     for page in range(1, 11):
         url = f"https://itunes.apple.com/in/rss/customerreviews/page={page}/id={app_store_id}/sortBy=mostRecent/json"
@@ -40,25 +46,31 @@ def fetch_appstore_reviews(product_key: str, app_store_id: str, since: datetime)
                             review_date = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
                         except ValueError:
                             review_date = datetime.now(UTC)
-                        
+
                         if review_date.tzinfo is None:
                             review_date = review_date.replace(tzinfo=since.tzinfo)
                         if review_date < since:
                             return
-                        
+
                         rating = int(entry.get("im:rating", {}).get("label", "0"))
-                        
+
                         if not is_valid_review(body_text, language="en"):
                             continue
-                            
+
                         body_scrubbed = scrub_pii(body_text)
                         rev_id = hashlib.sha1(f"appstore{external_id}".encode()).hexdigest()
                         yield RawReview(
-                            id=rev_id, product_key=product_key, source="appstore",
-                            external_id=external_id, rating=rating,
-                            title=entry.get("title", {}).get("label"), body=body_scrubbed,
-                            posted_at=review_date, version=entry.get("im:version", {}).get("label"),
-                            language="en", country="in"
+                            id=rev_id,
+                            product_key=product_key,
+                            source="appstore",
+                            external_id=external_id,
+                            rating=rating,
+                            title=entry.get("title", {}).get("label"),
+                            body=body_scrubbed,
+                            posted_at=review_date,
+                            version=entry.get("im:version", {}).get("label"),
+                            language="en",
+                            country="in",
                         )
                 else:
                     break
@@ -70,6 +82,7 @@ def fetch_appstore_reviews(product_key: str, app_store_id: str, since: datetime)
         import json
 
         from bs4 import BeautifulSoup
+
         url = f"https://apps.apple.com/in/app/reviews/id{app_store_id}"
         log.info("ingest.appstore.fallback.start", url=url)
         try:
@@ -82,9 +95,10 @@ def fetch_appstore_reviews(product_key: str, app_store_id: str, since: datetime)
                     content = s.string or ""
                     if "reviewerName" in content:
                         try:
-                            match = re.search(r'\{.*\}', content, re.DOTALL)
+                            match = re.search(r"\{.*\}", content, re.DOTALL)
                             if match:
                                 data = json.loads(match.group(0))
+
                                 def find_reviews(obj):
                                     if isinstance(obj, dict):
                                         if obj.get("$kind") == "Review":
@@ -94,7 +108,7 @@ def fetch_appstore_reviews(product_key: str, app_store_id: str, since: datetime)
                                     elif isinstance(obj, list):
                                         for item in obj:
                                             yield from find_reviews(item)
-                                
+
                                 count = 0
                                 for r_data in find_reviews(data):
                                     body = r_data.get("contents", "")
@@ -102,30 +116,43 @@ def fetch_appstore_reviews(product_key: str, app_store_id: str, since: datetime)
                                     author = r_data.get("reviewerName", "Anonymous")
                                     date_str = r_data.get("date")
                                     rating = r_data.get("rating")
-                                    ext_id = r_data.get("id") or hashlib.sha1(f"{author}{date_str}{body[:20]}".encode()).hexdigest()
-                                    
+                                    ext_id = (
+                                        r_data.get("id")
+                                        or hashlib.sha1(
+                                            f"{author}{date_str}{body[:20]}".encode()
+                                        ).hexdigest()
+                                    )
+
                                     try:
-                                        review_date = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+                                        review_date = datetime.fromisoformat(
+                                            date_str.replace("Z", "+00:00")
+                                        )
                                     except ValueError:
                                         review_date = datetime.now(UTC)
-                                    
+
                                     if review_date.tzinfo is None:
                                         review_date = review_date.replace(tzinfo=since.tzinfo)
                                     if review_date < since:
                                         continue
-                                    
+
                                     if not is_valid_review(body, language="en"):
                                         continue
-                                        
+
                                     body_scrubbed = scrub_pii(body)
                                     rev_id = hashlib.sha1(f"appstore{ext_id}".encode()).hexdigest()
                                     count += 1
                                     yield RawReview(
-                                        id=rev_id, product_key=product_key, source="appstore",
-                                        external_id=str(ext_id), rating=int(rating) if rating else None,
-                                        title=title, body=body_scrubbed,
-                                        posted_at=review_date, version=None,
-                                        language="en", country="in"
+                                        id=rev_id,
+                                        product_key=product_key,
+                                        source="appstore",
+                                        external_id=str(ext_id),
+                                        rating=int(rating) if rating else None,
+                                        title=title,
+                                        body=body_scrubbed,
+                                        posted_at=review_date,
+                                        version=None,
+                                        language="en",
+                                        country="in",
                                     )
                                 log.info("ingest.appstore.fallback.extracted", count=count)
                         except Exception as e:

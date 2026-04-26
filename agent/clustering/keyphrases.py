@@ -14,6 +14,7 @@ def _get_model():
     global _kw_model
     if _kw_model is None:
         from keybert import KeyBERT
+
         log.info("keyphrases.loading_model")
         _kw_model = KeyBERT(model="all-MiniLM-L6-v2")
         log.info("keyphrases.model_loaded")
@@ -46,7 +47,7 @@ def extract_keyphrases(
         keyphrase_ngram_range=(1, 3),
         stop_words="english",
         top_n=top_n,
-        use_mmr=True,    # Maximal Marginal Relevance for diversity
+        use_mmr=True,  # Maximal Marginal Relevance for diversity
         diversity=0.5,
     )
 

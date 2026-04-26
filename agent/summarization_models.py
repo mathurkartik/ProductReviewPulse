@@ -21,9 +21,7 @@ class ThemeResponse(BaseModel):
     label: str = Field(
         ..., description="Short, punchy name (e.g. 'KYC Friction', 'Withdrawal Speed')"
     )
-    description: str = Field(
-        ..., description="1-2 sentence summary of the cluster feedback"
-    )
+    description: str = Field(..., description="1-2 sentence summary of the cluster feedback")
     sentiment: Literal["negative", "mixed", "positive"]
 
 
@@ -89,15 +87,14 @@ class AudienceValue(BaseModel):
     """Value proposition for a specific stakeholder audience."""
 
     audience: Literal["Product", "Support", "Leadership"]
-    value: str = Field(
-        ..., description="How these findings help this specific audience"
-    )
+    value: str = Field(..., description="How these findings help this specific audience")
 
 
 class Window(BaseModel):
     start: date
     end: date
     weeks: int
+
 
 class PulseStats(BaseModel):
     total_reviews: int
@@ -140,9 +137,7 @@ class PulseCostExceeded(Exception):
     def __init__(self, spent: float, cap: float):
         self.spent = spent
         self.cap = cap
-        super().__init__(
-            f"LLM cost cap exceeded: ${spent:.4f} spent, cap is ${cap:.4f}"
-        )
+        super().__init__(f"LLM cost cap exceeded: ${spent:.4f} spent, cap is ${cap:.4f}")
 
 
 ActionIdeasResponse.model_rebuild()

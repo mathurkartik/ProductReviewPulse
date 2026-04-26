@@ -13,6 +13,7 @@ log = structlog.get_logger()
 # Provider interface
 # ---------------------------------------------------------------------------
 
+
 class EmbeddingProvider:
     """Abstract base for embedding providers."""
 
@@ -26,6 +27,7 @@ class EmbeddingProvider:
 # ---------------------------------------------------------------------------
 # Local BGE provider (default, zero-cost)
 # ---------------------------------------------------------------------------
+
 
 class LocalBGEProvider(EmbeddingProvider):
     """bge-small-en-v1.5 via sentence-transformers.  384-dim, local, no API key."""
@@ -53,6 +55,7 @@ class LocalBGEProvider(EmbeddingProvider):
 # ---------------------------------------------------------------------------
 # Cache helpers
 # ---------------------------------------------------------------------------
+
 
 def text_cache_key(text: str) -> str:
     """sha1 of normalised text — used as the embedding cache key."""

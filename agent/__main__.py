@@ -63,7 +63,7 @@ def ingest(
 ) -> None:
     """Phase 1 - ingest App Store + Play Store reviews."""
     _setup_logging()
-    
+
     from datetime import datetime, timedelta
 
     from agent.ingestion.appstore import fetch_appstore_reviews
@@ -78,7 +78,7 @@ def ingest(
     )
 
     settings = load_settings()
-    
+
     try:
         product_config = settings.get_product(product)
     except KeyError:
@@ -92,45 +92,48 @@ def ingest(
         appstore_id=product_config.appstore_id,
         play_package=product_config.play_package,
     )
-        
+
     now = datetime.now(UTC)
     since_date = now - timedelta(weeks=weeks)
-    
+
     iso_week = current_iso_week()
     run_id = make_run_id(product, iso_week)
-    
+
     upsert_run(
         settings.env.db_path,
         run_id=run_id,
         product_key=product,
         iso_week=iso_week,
         window_start=since_date.date().isoformat(),
-        window_end=now.date().isoformat()
+        window_end=now.date().isoformat(),
     )
     set_run_status(settings.env.db_path, run_id, "pending")
-    
-    log.info("ingest.start", product=product, weeks=weeks, since=since_date.isoformat(), run_id=run_id)
-    
+
+    log.info(
+        "ingest.start", product=product, weeks=weeks, since=since_date.isoformat(), run_id=run_id
+    )
+
     reviews = []
-    
+
     if product_config.appstore_id:
         log.info("ingest.appstore.start", appstore_id=product_config.appstore_id)
         for rev in fetch_appstore_reviews(product, product_config.appstore_id, since_date):
             reviews.append(rev)
-            
+
     if product_config.play_package:
         log.info("ingest.playstore.start", play_package=product_config.play_package)
         for rev in fetch_playstore_reviews(product, product_config.play_package, since_date):
             reviews.append(rev)
-            
+
     log.info("ingest.fetched", count=len(reviews))
-    
+
     if not reviews:
         log.warning("ingest.empty")
         set_run_status(settings.env.db_path, run_id, "failed")
         raise typer.Exit(code=0)
-        
+
     import contextlib
+
     with contextlib.closing(get_connection(settings.env.db_path)) as conn:
         with conn:
             for rev in reviews:
@@ -153,17 +156,17 @@ def ingest(
                         rev.language,
                         rev.country,
                         now.isoformat(),
-                        rev.model_dump_json()
-                    )
+                        rev.model_dump_json(),
+                    ),
                 )
-                
+
     audit_dir = settings.env.db_path.parent / "raw" / product
     audit_dir.mkdir(parents=True, exist_ok=True)
     audit_file = audit_dir / f"{run_id}.jsonl"
     with audit_file.open("w", encoding="utf-8") as f:
         for rev in reviews:
             f.write(rev.model_dump_json() + "\\n")
-            
+
     set_run_status(settings.env.db_path, run_id, "ingested")
     log.info("ingest.done", file=str(audit_file), count=len(reviews))
 
@@ -190,8 +193,7 @@ def cluster(
         log.error("cluster.run_not_found", run_id=run)
         raise typer.Exit(code=1)
     if status not in ("ingested", "clustered"):
-        log.error("cluster.wrong_status", run_id=run, status=status,
-                  expected="ingested")
+        log.error("cluster.wrong_status", run_id=run, status=status, expected="ingested")
         raise typer.Exit(code=1)
 
     log.info("cluster.start", run_id=run)
@@ -239,8 +241,7 @@ def summarize(
         log.error("summarize.run_not_found", run_id=run)
         raise typer.Exit(code=1)
     if status not in ("clustered", "summarized"):
-        log.error("summarize.wrong_status", run_id=run, status=status,
-                  expected="clustered")
+        log.error("summarize.wrong_status", run_id=run, status=status, expected="clustered")
         raise typer.Exit(code=1)
 
     if not settings.env.groq_api_key:
@@ -261,7 +262,6 @@ def summarize(
     typer.echo(f"[OK] Summarization complete for {run}")
     for i, theme in enumerate(summary.top_themes, 1):
         typer.echo(f"  {i}. {theme.label} ({theme.review_count} reviews)")
-
 
 
 # ---------------------------------------------------------------------------
@@ -300,29 +300,28 @@ def render(
 
     # 1. Generate Doc Requests
     doc_requests = generate_doc_requests(summary, product_config.display_name)
-    
+
     # 2. Render Email HTML and Plain Text
     email_html, email_txt = render_emails(summary, product_config.display_name)
 
     # 3. Save artifacts
     artifact_dir = Path("data/artifacts") / run
     artifact_dir.mkdir(parents=True, exist_ok=True)
-    
+
     with open(artifact_dir / "doc_requests.json", "w", encoding="utf-8") as f:
         json.dump(doc_requests, f, indent=2)
-        
+
     with open(artifact_dir / "email.html", "w", encoding="utf-8") as f:
         f.write(email_html)
-        
+
     with open(artifact_dir / "email.txt", "w", encoding="utf-8") as f:
         f.write(email_txt)
 
     # Update status
     storage.set_run_status(settings.env.db_path, run, "rendered")
-    
+
     log.info("render.done", run_id=run, artifact_dir=str(artifact_dir))
     typer.echo(f"[OK] Rendering complete for {run}. Artifacts in {artifact_dir}")
-
 
 
 # ---------------------------------------------------------------------------
@@ -363,7 +362,7 @@ def publish(
     product_config = settings.get_product(summary.product)
 
     from agent.mcp_client.session import MCPSession
-    
+
     session = MCPSession(url)
 
     if target in ("docs", "both"):
@@ -371,10 +370,12 @@ def publish(
         if not did:
             log.info("publish.docs.resolving", product=product_config.display_name)
             try:
-                did = resolve_document(session, product_config.display_name, product_config.key, settings.env.db_path)
+                did = resolve_document(
+                    session, product_config.display_name, product_config.key, settings.env.db_path
+                )
             except Exception as e:
                 log.error("publish.docs.resolve_failed", error=str(e))
-                
+
         if not did:
             log.error("publish.no_doc_id", msg="Could not resolve doc_id")
             deep_link = "https://docs.google.com/document"
@@ -383,7 +384,7 @@ def publish(
             try:
                 result = append_pulse_section(session, did, summary, product_config.display_name)
                 deep_link = result.get("deep_link", f"https://docs.google.com/document/d/{did}")
-                
+
                 if result.get("status") == "skipped":
                     typer.echo(f"[SKIP] Document already up to date: {deep_link}")
                 else:
@@ -396,7 +397,7 @@ def publish(
 
     if target in ("gmail", "both"):
         from agent.mcp_client.gmail_ops import send_pulse_email
-        
+
         artifact_dir = Path("data/artifacts") / run
         with open(artifact_dir / "email.txt", encoding="utf-8") as f:
             email_txt = f.read().replace("{DOC_DEEP_LINK}", deep_link)
@@ -406,17 +407,17 @@ def publish(
         recipients_to = [to] if to else product_config.recipients.to
         recipients_cc = product_config.recipients.cc
         recipients_bcc = product_config.recipients.bcc
-        
+
         if not recipients_to:
             recipients_to = ["product-team@example.com"]
-            
+
         confirm_send = settings.effective_confirm_send
         top_theme = summary.top_themes[0].label if summary.top_themes else "Review Pulse"
-        
+
         iso_week_str = f"{summary.window.end.year}-W{summary.window.end.isocalendar()[1]:02d}"
         subject = f"[Weekly Pulse] {product_config.display_name} — {iso_week_str} — {top_theme}"
         subject = subject[:197] + "..." if len(subject) > 200 else subject
-        
+
         log.info("publish.gmail.start", run_id=run, to=recipients_to, confirm_send=confirm_send)
         try:
             result = send_pulse_email(
@@ -430,11 +431,13 @@ def publish(
                 text=email_txt,
                 product_name=product_config.display_name,
                 confirm_send=confirm_send,
-                db_path=settings.env.db_path
+                db_path=settings.env.db_path,
             )
-            
+
             if result.get("status") == "skipped":
-                typer.echo(f"[SKIP] Email already sent/drafted: message_id={result.get('message_id')}")
+                typer.echo(
+                    f"[SKIP] Email already sent/drafted: message_id={result.get('message_id')}"
+                )
             elif result.get("status") == "sent":
                 typer.echo(f"[OK] Sent Gmail: message_id={result.get('message_id')}")
             else:
@@ -447,7 +450,6 @@ def publish(
     log.info("publish.done", run_id=run)
 
 
-
 # ---------------------------------------------------------------------------
 # Phase 7 — run (full orchestration)
 # ---------------------------------------------------------------------------
@@ -457,23 +459,21 @@ def publish(
 def run_pipeline(
     product: str = typer.Option(..., help="Product key (e.g. groww)"),
     weeks: int = typer.Option(10, help="Rolling window in weeks"),
-    week: str | None = typer.Option(
-        None, help="Specific ISO week to backfill, e.g. 2026-W15"
-    ),
+    week: str | None = typer.Option(None, help="Specific ISO week to backfill, e.g. 2026-W15"),
     publish_target: str = typer.Option("both", help="docs | gmail | both"),
     doc_id: str | None = typer.Option(None, help="Override Google Doc ID"),
 ) -> None:
     """Phase 7 - full orchestration: ingest -> cluster -> summarize -> render -> publish."""
     _setup_logging()
-    
+
     from agent.storage import current_iso_week, get_run_status, make_run_id
-    
+
     settings = load_settings()
     iso_week = week or current_iso_week()
     run_id = make_run_id(product, iso_week)
-    
+
     log.info("pipeline.start", product=product, iso_week=iso_week, run_id=run_id)
-    
+
     # 1. Ingest
     status = get_run_status(settings.env.db_path, run_id)
     if not status or status == "pending":
@@ -481,38 +481,37 @@ def run_pipeline(
         status = "ingested"
     else:
         log.info("pipeline.skip_ingest", status=status)
-        
+
     # 2. Cluster
     if status == "ingested":
         cluster(run=run_id)
         status = "clustered"
     else:
         log.info("pipeline.skip_cluster", status=status)
-        
+
     # 3. Summarize
     if status == "clustered":
         summarize(run=run_id)
         status = "summarized"
     else:
         log.info("pipeline.skip_summarize", status=status)
-        
+
     # 4. Render
     if status == "summarized":
         render(run=run_id)
         status = "rendered"
     else:
         log.info("pipeline.skip_render", status=status)
-        
+
     # 5. Publish
     if status == "rendered":
         publish(run=run_id, target=publish_target, doc_id=doc_id, to=None)
         status = "published"
     else:
         log.info("pipeline.skip_publish", status=status)
-        
+
     log.info("pipeline.done", run_id=run_id, final_status=status)
     typer.echo(f"[OK] Full pipeline run complete for {product} ({iso_week})")
-
 
 
 if __name__ == "__main__":

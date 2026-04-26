@@ -65,5 +65,6 @@ def test_parse_iso_week_valid() -> None:
 
 def test_parse_iso_week_invalid_raises() -> None:
     import pytest
+
     with pytest.raises(ValueError):
         storage.parse_iso_week("20260417")

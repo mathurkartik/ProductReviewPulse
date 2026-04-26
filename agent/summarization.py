@@ -37,13 +37,16 @@ _PII_PATTERNS: list[tuple[re.Pattern, str]] = [
     (re.compile(r"\b\d{4}[\s-]?\d{4}[\s-]?\d{4}\b"), "[AADHAAR]"),
 ]
 
+
 def _scrub_pii(text: str) -> str:
     for pattern, replacement in _PII_PATTERNS:
         text = pattern.sub(replacement, text)
     return text
 
+
 def _normalise(text: str) -> str:
     return " ".join(unicodedata.normalize("NFKC", text).split()).lower()
+
 
 def validate_quote(quote_text: str, review_pool: list[str]) -> bool:
     q = _normalise(quote_text)
@@ -53,6 +56,7 @@ def validate_quote(quote_text: str, review_pool: list[str]) -> bool:
         if q in _normalise(body):
             return True
     return False
+
 
 _COST_PER_INPUT_TOKEN = 0.59 / 1_000_000
 _COST_PER_OUTPUT_TOKEN = 0.79 / 1_000_000
@@ -159,6 +163,7 @@ Return JSON:
 }}
 """
 
+
 class LLMClient:
     def __init__(self, settings: Settings):
         self.client = OpenAI(
@@ -207,13 +212,17 @@ class LLMClient:
                     break
         raise RuntimeError(f"LLM call failed after {max_retries} attempts") from last_error
 
-def label_theme(llm: LLMClient, keyphrases: list[str], medoid_body: str, sample_bodies: list[str]) -> dict:
+
+def label_theme(
+    llm: LLMClient, keyphrases: list[str], medoid_body: str, sample_bodies: list[str]
+) -> dict:
     prompt = LABEL_THEME_PROMPT.format(
         keyphrases=", ".join(keyphrases),
         medoid=_scrub_pii(medoid_body),
         samples="\n".join(f"- {_scrub_pii(b[:300])}" for b in sample_bodies[:10]),
     )
     return llm.call(prompt)
+
 
 def select_quotes(
     llm: LLMClient,
@@ -236,7 +245,9 @@ def select_quotes(
     for q in data.get("quotes", []):
         text = q.get("text", "")
         if validate_quote(text, review_pool_for_validation):
-            validated.append(Quote(text=text, rating=q.get("rating"), source=q.get("source", "playstore")))
+            validated.append(
+                Quote(text=text, rating=q.get("rating"), source=q.get("source", "playstore"))
+            )
         else:
             failed_texts.append(text)
 
@@ -253,22 +264,43 @@ def select_quotes(
             if any(vq.text == text for vq in validated):
                 continue
             if validate_quote(text, review_pool_for_validation):
-                validated.append(Quote(text=text, rating=q.get("rating"), source=q.get("source", "playstore")))
+                validated.append(
+                    Quote(text=text, rating=q.get("rating"), source=q.get("source", "playstore"))
+                )
 
     if not validated:
         log.warning("quotes.all_failed", theme=theme_name)
 
     return validated[:1]  # Cap at exactly 1 per theme
 
-def generate_action_ideas(llm: LLMClient, themes: list[Theme], product_key: str) -> list[ActionIdea]:
-    themes_json = json.dumps([{"label": t.label, "description": t.description, "review_count": t.review_count} for t in themes], indent=2)
-    data = llm.call(ACTION_IDEAS_PROMPT.format(product=product_key, themes_json=themes_json))
-    return [ActionIdea(**a) for a in data.get("action_ideas", [])[:3]] # Exactly 3
 
-def generate_what_this_solves(llm: LLMClient, themes: list[Theme], product_key: str) -> list[AudienceValue]:
-    themes_json = json.dumps([{"label": t.label, "description": t.description, "review_count": t.review_count} for t in themes], indent=2)
+def generate_action_ideas(
+    llm: LLMClient, themes: list[Theme], product_key: str
+) -> list[ActionIdea]:
+    themes_json = json.dumps(
+        [
+            {"label": t.label, "description": t.description, "review_count": t.review_count}
+            for t in themes
+        ],
+        indent=2,
+    )
+    data = llm.call(ACTION_IDEAS_PROMPT.format(product=product_key, themes_json=themes_json))
+    return [ActionIdea(**a) for a in data.get("action_ideas", [])[:3]]  # Exactly 3
+
+
+def generate_what_this_solves(
+    llm: LLMClient, themes: list[Theme], product_key: str
+) -> list[AudienceValue]:
+    themes_json = json.dumps(
+        [
+            {"label": t.label, "description": t.description, "review_count": t.review_count}
+            for t in themes
+        ],
+        indent=2,
+    )
     data = llm.call(WHAT_THIS_SOLVES_PROMPT.format(product=product_key, themes_json=themes_json))
     return [AudienceValue(**w) for w in data.get("what_this_solves", [])]
+
 
 class Summarizer:
     def __init__(self, settings: Settings):
@@ -287,10 +319,14 @@ class Summarizer:
             raise ValueError(f"Run {run_id} not found")
 
         product_key = run["product_key"]
-        
+
         # Calculate stats for the run
-        total_reviews = cursor.execute("SELECT COUNT(*) FROM reviews WHERE product_key = ?", (product_key,)).fetchone()[0]
-        avg_rating_row = cursor.execute("SELECT AVG(rating) FROM reviews WHERE product_key = ?", (product_key,)).fetchone()[0]
+        total_reviews = cursor.execute(
+            "SELECT COUNT(*) FROM reviews WHERE product_key = ?", (product_key,)
+        ).fetchone()[0]
+        avg_rating_row = cursor.execute(
+            "SELECT AVG(rating) FROM reviews WHERE product_key = ?", (product_key,)
+        ).fetchone()[0]
         avg_rating = round(avg_rating_row, 2) if avg_rating_row else 0.0
 
         clusters = cursor.execute(
@@ -322,13 +358,28 @@ class Summarizer:
             bodies = [r["body"] for r in reviews_data]
             metadata = [{"rating": r["rating"], "source": r["source"]} for r in reviews_data]
 
-            medoid_row = cursor.execute("SELECT body FROM reviews WHERE id = ?", (c["medoid_review_id"],)).fetchone()
+            medoid_row = cursor.execute(
+                "SELECT body FROM reviews WHERE id = ?", (c["medoid_review_id"],)
+            ).fetchone()
             medoid_body = medoid_row["body"] if medoid_row else bodies[0]
 
-            theme_data = label_theme(self.llm, keyphrases=keyphrases, medoid_body=medoid_body, sample_bodies=bodies)
-            log.info("summarize.theme_labeled", cluster_id=cluster_id, theme=theme_data.get("label"), count=len(review_ids))
+            theme_data = label_theme(
+                self.llm, keyphrases=keyphrases, medoid_body=medoid_body, sample_bodies=bodies
+            )
+            log.info(
+                "summarize.theme_labeled",
+                cluster_id=cluster_id,
+                theme=theme_data.get("label"),
+                count=len(review_ids),
+            )
 
-            quotes = select_quotes(self.llm, theme_name=theme_data.get("label", "Unknown"), review_bodies=bodies, review_metadata=metadata, review_pool_for_validation=bodies)
+            quotes = select_quotes(
+                self.llm,
+                theme_name=theme_data.get("label", "Unknown"),
+                review_bodies=bodies,
+                review_metadata=metadata,
+                review_pool_for_validation=bodies,
+            )
             log.info("summarize.quotes_selected", theme=theme_data.get("label"), valid=len(quotes))
 
             all_quotes.extend(quotes)
@@ -345,7 +396,9 @@ class Summarizer:
             discovered_themes.append(theme)
 
         # Rank themes
-        discovered_themes.sort(key=lambda t: t.review_count * sentiment_score_map.get(t.sentiment, 0.5), reverse=True)
+        discovered_themes.sort(
+            key=lambda t: t.review_count * sentiment_score_map.get(t.sentiment, 0.5), reverse=True
+        )
         top_themes = discovered_themes[:3]
 
         for i, theme in enumerate(top_themes):
@@ -354,8 +407,16 @@ class Summarizer:
         action_ideas = generate_action_ideas(self.llm, top_themes, product_key)
         what_this_solves = generate_what_this_solves(self.llm, top_themes, product_key)
 
-        window_start_date = datetime.strptime(run["window_start"], "%Y-%m-%d").date() if isinstance(run["window_start"], str) else run["window_start"]
-        window_end_date = datetime.strptime(run["window_end"], "%Y-%m-%d").date() if isinstance(run["window_end"], str) else run["window_end"]
+        window_start_date = (
+            datetime.strptime(run["window_start"], "%Y-%m-%d").date()
+            if isinstance(run["window_start"], str)
+            else run["window_start"]
+        )
+        window_end_date = (
+            datetime.strptime(run["window_end"], "%Y-%m-%d").date()
+            if isinstance(run["window_end"], str)
+            else run["window_end"]
+        )
         # Approximate weeks (in actual run this would be passed or saved)
         window_weeks = (window_end_date - window_start_date).days // 7
 
@@ -376,12 +437,19 @@ class Summarizer:
                    (id, run_id, rank, label, description, sentiment, review_count, representative_review_ids_json)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
-                    theme.id, run_id, theme.rank, theme.label, theme.description,
-                    theme.sentiment, theme.review_count, json.dumps(theme.representative_review_ids),
+                    theme.id,
+                    run_id,
+                    theme.rank,
+                    theme.label,
+                    theme.description,
+                    theme.sentiment,
+                    theme.review_count,
+                    json.dumps(theme.representative_review_ids),
                 ),
             )
 
-        cursor.execute("UPDATE runs SET metrics_json = ?, status = 'summarized', updated_at = ? WHERE id = ?",
+        cursor.execute(
+            "UPDATE runs SET metrics_json = ?, status = 'summarized', updated_at = ? WHERE id = ?",
             (self.llm.metrics.model_dump_json(), datetime.now(UTC).isoformat(), run_id),
         )
         conn.commit()
@@ -392,5 +460,10 @@ class Summarizer:
         with open(summary_dir / f"{run_id}.json", "w", encoding="utf-8") as f:
             f.write(pulse_summary.model_dump_json(indent=2))
 
-        log.info("summarize.done", run_id=run_id, themes=[t.label for t in top_themes], cost_usd=f"${self.llm.metrics.llm_cost_usd:.4f}")
+        log.info(
+            "summarize.done",
+            run_id=run_id,
+            themes=[t.label for t in top_themes],
+            cost_usd=f"${self.llm.metrics.llm_cost_usd:.4f}",
+        )
         return pulse_summary

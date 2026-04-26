@@ -9,9 +9,10 @@ import structlog
 
 log = structlog.get_logger()
 
+
 class MCPSession:
     """Wrapper for the custom REST-based 'MCP' server."""
-    
+
     def __init__(self, url: str):
         self.base_url = url.rstrip("/")
         self.client = httpx.Client(timeout=300.0)
@@ -39,6 +40,7 @@ class MCPSession:
         except Exception as e:
             log.error("mcp.tool_failed", tool=tool_name, error=str(e))
             raise
+
 
 def call_mcp_tool_sync(url: str, tool_name: str, arguments: dict) -> dict:
     session = MCPSession(url)

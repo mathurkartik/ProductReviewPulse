@@ -68,9 +68,7 @@ def run_clustering(
     # ------------------------------------------------------------------
     with contextlib.closing(sqlite3.connect(db_path)) as conn:
         conn.row_factory = sqlite3.Row
-        run_row = conn.execute(
-            "SELECT product_key FROM runs WHERE id = ?", (run_id,)
-        ).fetchone()
+        run_row = conn.execute("SELECT product_key FROM runs WHERE id = ?", (run_id,)).fetchone()
         if not run_row:
             raise ValueError(f"Run {run_id!r} not found in database")
 
@@ -158,9 +156,7 @@ def run_clustering(
         mask = labels == label
         cluster_review_ids = [rid for rid, m in zip(review_ids, mask, strict=True) if m]
         cluster_vectors = vectors[mask]
-        cluster_texts = [
-            r["body"] for r in review_rows if r["id"] in set(cluster_review_ids)
-        ]
+        cluster_texts = [r["body"] for r in review_rows if r["id"] in set(cluster_review_ids)]
 
         # Medoid
         medoid_id = _select_medoid(cluster_vectors, cluster_review_ids)
@@ -168,9 +164,7 @@ def run_clustering(
         # Keyphrases
         keyphrases = extract_keyphrases(cluster_texts, top_n=8)
 
-        cluster_id = hashlib.sha1(
-            f"{run_id}-cluster-{label}".encode()
-        ).hexdigest()
+        cluster_id = hashlib.sha1(f"{run_id}-cluster-{label}".encode()).hexdigest()
 
         clusters.append(
             {

@@ -109,9 +109,7 @@ def load_settings(yaml_path: Path | None = None) -> Settings:
     env = EnvSettings()
     raw = _load_yaml(yaml_path or ROOT / "products.yaml")
 
-    products: list[ProductConfig] = [
-        ProductConfig(**p) for p in raw.get("products", [])
-    ]
+    products: list[ProductConfig] = [ProductConfig(**p) for p in raw.get("products", [])]
     defaults = Defaults(**raw.get("defaults", {})) if "defaults" in raw else Defaults()
 
     return Settings(env=env, products=products, defaults=defaults)

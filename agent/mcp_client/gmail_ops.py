@@ -11,6 +11,7 @@ from agent.mcp_client.session import MCPSession
 
 log = structlog.get_logger()
 
+
 def send_pulse_email(
     session: MCPSession,
     run_id: str,
@@ -22,7 +23,7 @@ def send_pulse_email(
     text: str,
     product_name: str,
     confirm_send: bool,
-    db_path: Path
+    db_path: Path,
 ):
     """
     Idempotent email delivery:
@@ -34,7 +35,7 @@ def send_pulse_email(
     """
     header_query = f"X-Pulse-Run-Id:{run_id}"
     log.info("gmail.search_start", query=header_query)
-    
+
     try:
         search_res = session.call_tool("gmail.search_messages", {"query": header_query})
         if search_res.get("status") == "success" and search_res.get("messages"):
@@ -49,29 +50,32 @@ def send_pulse_email(
     to_str = ", ".join(to)
     cc_str = ", ".join(cc) if cc else ""
     bcc_str = ", ".join(bcc) if bcc else ""
-    
+
     log.info("gmail.create_draft_start", to=to_str)
-    draft_res = session.call_tool("gmail.create_draft", {
-        "to": to_str,
-        "cc": cc_str,
-        "bcc": bcc_str,
-        "subject": subject,
-        "text": text,
-        "html": html,
-        "headers": {"X-Pulse-Run-Id": run_id},
-        "label": f"Pulse/{product_name}"
-    })
-    
+    draft_res = session.call_tool(
+        "gmail.create_draft",
+        {
+            "to": to_str,
+            "cc": cc_str,
+            "bcc": bcc_str,
+            "subject": subject,
+            "text": text,
+            "html": html,
+            "headers": {"X-Pulse-Run-Id": run_id},
+            "label": f"Pulse/{product_name}",
+        },
+    )
+
     if draft_res.get("status") != "success":
         log.error("gmail.create_draft_failed", error=draft_res.get("message"))
         raise RuntimeError(f"Failed to create draft: {draft_res.get('message')}")
-        
+
     draft_id = draft_res["draft_id"]
     log.info("gmail.draft_created", draft_id=draft_id)
-    
+
     # Store draft ID initially
     storage.set_run_gmail_id(db_path, run_id, draft_id)
-    
+
     if confirm_send:
         log.info("gmail.send_start", draft_id=draft_id)
         send_res = session.call_tool("gmail.send_message", {"draft_id": draft_id})
@@ -84,5 +88,5 @@ def send_pulse_email(
         else:
             log.error("gmail.send_failed", error=send_res.get("message"))
             raise RuntimeError(f"Failed to send email: {send_res.get('message')}")
-            
+
     return {"status": "drafted", "draft_id": draft_id}

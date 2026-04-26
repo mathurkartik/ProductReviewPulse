@@ -35,9 +35,7 @@ def parse_iso_week(iso_week: str) -> tuple[int, int]:
     """
     parts = iso_week.split("-W")
     if len(parts) != 2 or not parts[0].isdigit() or not parts[1].isdigit():
-        raise ValueError(
-            f"Invalid ISO week format: {iso_week!r}. Expected 'YYYY-WNN'."
-        )
+        raise ValueError(f"Invalid ISO week format: {iso_week!r}. Expected 'YYYY-WNN'.")
     return int(parts[0]), int(parts[1])
 
 
@@ -156,7 +154,6 @@ def get_tables(db_path: Path) -> list[str]:
 _now_utc = lambda: datetime.now(UTC).isoformat()  # noqa: E731
 
 
-
 def upsert_product(
     db_path: Path,
     *,
@@ -182,12 +179,11 @@ def upsert_product(
                 (key, display, appstore_id, play_package, gmail_to),
             )
 
+
 def get_product_gdoc_id(db_path: Path, product_key: str) -> str | None:
     """Return the Google Doc ID for the product, or None if not set."""
     with contextlib.closing(get_connection(db_path)) as conn:
-        row = conn.execute(
-            "SELECT gdoc_id FROM products WHERE key=?", (product_key,)
-        ).fetchone()
+        row = conn.execute("SELECT gdoc_id FROM products WHERE key=?", (product_key,)).fetchone()
     return row["gdoc_id"] if row else None
 
 
@@ -199,6 +195,7 @@ def set_product_gdoc_id(db_path: Path, product_key: str, gdoc_id: str) -> None:
                 "UPDATE products SET gdoc_id=? WHERE key=?",
                 (gdoc_id, product_key),
             )
+
 
 def upsert_run(
     db_path: Path,
@@ -236,19 +233,17 @@ def set_run_status(db_path: Path, run_id: str, status: str) -> None:
 def get_run_status(db_path: Path, run_id: str) -> str | None:
     """Return current status string, or None if run doesn't exist."""
     with contextlib.closing(get_connection(db_path)) as conn:
-        row = conn.execute(
-            "SELECT status FROM runs WHERE id=?", (run_id,)
-        ).fetchone()
+        row = conn.execute("SELECT status FROM runs WHERE id=?", (run_id,)).fetchone()
     return row["status"] if row else None
 
 
 def set_run_gmail_id(db_path: Path, run_id: str, message_id: str) -> None:
     """Update the Gmail message/draft ID for the run."""
     import contextlib
+
     with contextlib.closing(get_connection(db_path)) as conn:
         with conn:
             conn.execute(
                 "UPDATE runs SET gmail_message_id=?, updated_at=? WHERE id=?",
                 (message_id, _now_utc(), run_id),
             )
-
