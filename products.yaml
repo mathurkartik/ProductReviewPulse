@@ -12,7 +12,7 @@ defaults:
   window_weeks: 10
   embedding_model: bge-small-en-v1.5
   llm_provider: groq
-  llm_model: llama-3.3-70b-versatile
+  llm_model: llama-3.1-8b-instant
   max_llm_cost_usd_per_run: 0.50
   hdbscan_min_cluster_size: 8
   confirm_send: false
