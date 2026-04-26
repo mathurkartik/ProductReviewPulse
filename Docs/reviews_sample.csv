@@ -1,0 +1,11 @@
+id,source,rating,date,title,body
+"rev_1a2b3c4d","playstore",1,"2026-04-12","App crashes during trading","The app keeps crashing when I try to execute an options trade. Lost money because the sell button was completely unresponsive during a volatile spike."
+"rev_5e6f7g8h","appstore",2,"2026-04-14","Terrible customer support","Customer support is practically non-existent. I raised a ticket about a failed UPI deposit 4 days ago and only get automated replies from the bot."
+"rev_9i0j1k2l","playstore",1,"2026-04-15","KYC stuck forever","I submitted my PAN and Aadhar last week. It still says verification in progress. My friends got verified on other apps in 10 minutes. Pathetic onboarding."
+"rev_3m4n5o6p","appstore",3,"2026-04-10","Good but slow UI","Love the clean UI for mutual funds, but the recent update made the portfolio refresh rate extremely slow. Please fix the lag."
+"rev_7q8r9s0t","playstore",5,"2026-04-16","Best broker","Smooth account opening process and great charts. Never had an issue with withdrawals."
+"rev_1u2v3w4x","playstore",2,"2026-04-11","Hidden charges","They promised zero brokerage but there are so many hidden DP charges when you sell delivery stocks."
+"rev_5y6z7a8b","appstore",1,"2026-04-13","Money deducted but not showing","My bank shows the money was deducted for the SIP but the app says payment failed. I cannot reach any human to resolve this."
+"rev_9c0d1e2f","playstore",4,"2026-04-09","Nice for beginners","Very easy to understand mutual funds here. Only deducting one star because the dark mode is not available."
+"rev_3g4h5i6j","appstore",1,"2026-04-17","Chart glitches","Candlestick charts do not load properly on 1-minute timeframes. Switching back to Zerodha."
+"rev_7k8l9m0n","playstore",2,"2026-04-14","GTT order failed","My GTT order did not trigger even though the price was hit. This caused a huge loss."

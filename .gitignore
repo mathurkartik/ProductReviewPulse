@@ -10,6 +10,9 @@ data/artifacts/
 data/pulse.db
 data/pulse.db-shm
 data/pulse.db-wal
+pulse.sqlite
+*.tmp
+scratch/
 
 # Embedding cache
 data/embedding_cache/

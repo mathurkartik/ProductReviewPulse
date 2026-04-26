@@ -81,12 +81,8 @@ def create_draft(to: str, subject: str, text: str, html: str = None, cc: str = "
         
         body_obj = {"message": {"raw": raw_message}}
         
-        # Note: Labels cannot be set on drafts via Gmail API
-        # Labels are applied after the message is sent
-        if label_name:
-            lbl_id = get_or_create_label(service, label_name)
-            if lbl_id:
-                body_obj["message"]["labelIds"] = [lbl_id]
+        # Note: Labels cannot be set on drafts via Gmail API.
+        # Labels are only supported when sending or updating an existing message.
             
         draft = service.users().drafts().create(userId="me", body=body_obj).execute()
         

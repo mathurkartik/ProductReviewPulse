@@ -201,8 +201,4 @@ def generate_doc_requests(
             pointer += len(col2) + 3
 
     current_idx = pointer
-
-    # Add padding newlines at the end
-    requests.append({"insertText": {"location": {"index": current_idx}, "text": "\n\n"}})
-    
     return requests
