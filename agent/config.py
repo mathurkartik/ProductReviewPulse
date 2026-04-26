@@ -35,7 +35,7 @@ class Defaults(BaseModel):
     window_weeks: int = 10
     embedding_model: str = "bge-small-en-v1.5"
     llm_provider: str = "groq"
-    llm_model: str = "llama3-70b-8192"
+    llm_model: str = "llama-3.3-70b-versatile"
     max_llm_cost_usd_per_run: float = 0.50
     hdbscan_min_cluster_size: int = 8
     confirm_send: bool = False

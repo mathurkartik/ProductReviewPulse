@@ -251,7 +251,7 @@ def summarize(
         raise typer.Exit(code=1)
 
     if not settings.env.groq_api_key:
-        log.error("summarize.no_api_key", msg="GROQ_API_KEY is missing in .env")
+        log.error("summarize.no_api_key", msg="GROQ_API_KEY is missing from environment/secrets")
         raise typer.Exit(code=1)
 
     log.info("summarize.start", run_id=run)
@@ -358,7 +358,7 @@ def publish(
     storage.init_db(settings.env.db_path)
     url = settings.env.mcp_server_url
     if not url:
-        log.error("publish.no_mcp_url", msg="MCP_SERVER_URL missing in .env")
+        log.error("publish.no_mcp_url", msg="MCP_SERVER_URL is missing from environment/secrets")
         raise typer.Exit(code=1)
 
     # Load summary
@@ -500,6 +500,15 @@ def run_pipeline(
     run_id = make_run_id(product, iso_week)
 
     log.info("pipeline.start", product=product, iso_week=iso_week, run_id=run_id)
+
+    # Early validation for production
+    if settings.env.pulse_env == "production":
+        if not settings.env.groq_api_key:
+            log.error("pipeline.validation_failed", msg="GROQ_API_KEY is missing")
+            raise typer.Exit(code=1)
+        if not settings.env.mcp_server_url:
+            log.error("pipeline.validation_failed", msg="MCP_SERVER_URL is missing")
+            raise typer.Exit(code=1)
 
     # 1. Ingest
     status = get_run_status(settings.env.db_path, run_id)
