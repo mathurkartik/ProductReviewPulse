@@ -19,31 +19,52 @@ def get_creds():
     token_path = os.path.join(BASE_DIR, "token.json")
     creds_path = os.path.join(BASE_DIR, "credentials.json")
     
-    # 1. Load from Environment Variable (for Render)
-    env_token = os.environ.get("GOOGLE_TOKEN_JSON")
-    if env_token:
-        try:
-            token_dict = json.loads(env_token)
-            creds = Credentials.from_authorized_user_info(token_dict, SCOPES)
-        except json.JSONDecodeError as e:
-            if os.environ.get("RENDER"):
-                raise Exception(f"GOOGLE_TOKEN_JSON is set but contains invalid JSON: {e}")
-            else:
-                print(f"Error parsing GOOGLE_TOKEN_JSON: {e}")
-    # 2. Fallback to local file
-    elif os.path.exists(token_path):
+    # 1. Load from Individual Environment Variables (Most robust for Render)
+    client_id = os.environ.get("GOOGLE_CLIENT_ID")
+    client_secret = os.environ.get("GOOGLE_CLIENT_SECRET")
+    refresh_token = os.environ.get("GOOGLE_REFRESH_TOKEN")
+    
+    if client_id and client_secret and refresh_token:
+        creds = Credentials(
+            token=None, 
+            refresh_token=refresh_token,
+            token_uri="https://oauth2.googleapis.com/token",
+            client_id=client_id,
+            client_secret=client_secret,
+            scopes=SCOPES
+        )
+    
+    # 2. Fallback to GOOGLE_TOKEN_JSON blob
+    if not creds:
+        env_token = os.environ.get("GOOGLE_TOKEN_JSON")
+        if env_token:
+            try:
+                token_dict = json.loads(env_token)
+                creds = Credentials.from_authorized_user_info(token_dict, SCOPES)
+            except json.JSONDecodeError as e:
+                if os.environ.get("RENDER"):
+                    raise Exception(f"GOOGLE_TOKEN_JSON is set but contains invalid JSON: {e}")
+                else:
+                    print(f"Error parsing GOOGLE_TOKEN_JSON: {e}")
+
+    # 3. Fallback to local file
+    if not creds and os.path.exists(token_path):
         creds = Credentials.from_authorized_user_file(token_path, SCOPES)
 
-    # 3. Refresh or Fail (No interactive login in cloud)
+    # 4. Refresh or Fail (No interactive login in cloud)
     if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
+        if creds and creds.refresh_token:
+            try:
+                creds.refresh(Request())
+            except Exception as e:
+                if os.environ.get("RENDER"):
+                    raise Exception(f"Failed to refresh Google token: {e}. Check if Client ID/Secret/Refresh Token are correct.")
+                else:
+                    print(f"Refresh failed: {e}")
         else:
             if os.environ.get("RENDER"):
-                if not env_token:
-                    raise Exception("GOOGLE_TOKEN_JSON environment variable is missing completely on Render.")
-                else:
-                    raise Exception("GOOGLE_TOKEN_JSON is present but the token is expired and has no refresh_token.")
+                msg = "Google Auth failed on Render. Please set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REFRESH_TOKEN environment variables."
+                raise Exception(msg)
             
             # Local flow - check if credentials.json exists
             if not os.path.exists(creds_path):
