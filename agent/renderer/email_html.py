@@ -22,21 +22,23 @@ def render_emails(
     txt_template = env.get_template("email.txt.j2")
 
     iso_week_str = f"{summary.window.end.year}-W{summary.window.end.isocalendar()[1]:02d}"
+    
+    # Prepare template data
+    template_data = {
+        "product_name": product_name,
+        "iso_week": iso_week_str,
+        "window_start": summary.window.start.strftime("%b %d"),
+        "window_end": summary.window.end.strftime("%b %d, %Y"),
+        "total_reviews": summary.stats.total_reviews,
+        "avg_rating": f"{summary.stats.avg_rating:.1f}",
+        "themes": summary.top_themes,
+        "action_ideas": summary.action_ideas,
+        "quotes": summary.quotes,
+        "doc_link": doc_link,
+        "dashboard_link": dashboard_link,
+    }
 
-    html_content = html_template.render(
-        product_name=product_name,
-        iso_week=iso_week_str,
-        themes=summary.top_themes,
-        doc_link=doc_link,
-        dashboard_link=dashboard_link,
-    )
-
-    txt_content = txt_template.render(
-        product_name=product_name,
-        iso_week=iso_week_str,
-        themes=summary.top_themes,
-        doc_link=doc_link,
-        dashboard_link=dashboard_link,
-    )
+    html_content = html_template.render(**template_data)
+    txt_content = txt_template.render(**template_data)
 
     return html_content, txt_content

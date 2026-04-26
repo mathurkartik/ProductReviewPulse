@@ -1,45 +1,475 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ product_name }} - Weekly Review Pulse</title>
 <style>
-  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; }
-  .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px; }
-  .header { background: #00d09c; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
-  .theme-card { border-left: 4px solid #00d09c; background: #f9f9f9; padding: 15px; margin: 15px 0; }
-  .footer { font-size: 0.8em; color: #777; margin-top: 30px; border-top: 1px solid #eee; padding-top: 10px; }
-  .btn { display: inline-block; padding: 10px 20px; background: #00d09c; color: white; text-decoration: none; border-radius: 4px; font-weight: bold; margin-right: 10px; }
-  .btn-outline { display: inline-block; padding: 10px 20px; border: 1px solid #00d09c; color: #00d09c; text-decoration: none; border-radius: 4px; font-weight: bold; }
+  /* Base styles */
+  body { 
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; 
+    line-height: 1.6; 
+    color: #1a1a2e; 
+    background: #f5f5f5;
+    margin: 0;
+    padding: 20px;
+  }
+  
+  .email-wrapper {
+    max-width: 680px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    overflow: hidden;
+  }
+  
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, #00d09c 0%, #00b386 100%);
+    color: white;
+    padding: 32px;
+  }
+  
+  .header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 24px;
+  }
+  
+  .logo {
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+  
+  .logo span {
+    font-weight: 400;
+    opacity: 0.9;
+  }
+  
+  .header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    margin: 0 0 8px 0;
+    letter-spacing: -0.5px;
+  }
+  
+  .header-meta {
+    display: flex;
+    gap: 16px;
+    font-size: 13px;
+    opacity: 0.9;
+  }
+  
+  .badge {
+    background: rgba(255,255,255,0.2);
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-weight: 500;
+  }
+  
+  /* Content */
+  .content {
+    padding: 32px;
+  }
+  
+  .section-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1a1a2e;
+    margin: 0 0 20px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .section-subtitle {
+    font-size: 11px;
+    font-weight: 600;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-left: auto;
+  }
+  
+  /* Theme Cards */
+  .theme-card {
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 16px;
+    background: #fff;
+    border: 1px solid #e8e8e8;
+    border-left: 4px solid #00d09c;
+  }
+  
+  .theme-card.critical {
+    border-left-color: #ff4757;
+    background: #fff5f5;
+  }
+  
+  .theme-card.negative {
+    border-left-color: #ffa502;
+    background: #fffbf0;
+  }
+  
+  .theme-card.neutral {
+    border-left-color: #747d8c;
+    background: #f8f9fa;
+  }
+  
+  .theme-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+  
+  .theme-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1a1a2e;
+    flex: 1;
+  }
+  
+  .sentiment-badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 12px;
+    text-transform: uppercase;
+  }
+  
+  .sentiment-badge.critical {
+    background: #ff4757;
+    color: white;
+  }
+  
+  .sentiment-badge.negative {
+    background: #ffa502;
+    color: white;
+  }
+  
+  .sentiment-badge.neutral {
+    background: #747d8c;
+    color: white;
+  }
+  
+  .theme-trend {
+    font-size: 13px;
+    color: #00d09c;
+    font-weight: 600;
+  }
+  
+  .theme-description {
+    font-size: 14px;
+    color: #4a4a68;
+    margin: 8px 0 0 0;
+    line-height: 1.5;
+  }
+  
+  /* Action Ideas */
+  .action-section {
+    background: #1a1a2e;
+    border-radius: 12px;
+    padding: 24px;
+    margin-top: 32px;
+    color: white;
+  }
+  
+  .action-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  
+  .action-header h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+  }
+  
+  .action-icon {
+    width: 24px;
+    height: 24px;
+    background: #00d09c;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+  }
+  
+  .action-item {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+  
+  .action-item:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+  }
+  
+  .action-number {
+    font-size: 24px;
+    font-weight: 700;
+    color: #00d09c;
+    min-width: 32px;
+  }
+  
+  .action-content h4 {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 0 0 4px 0;
+    color: white;
+  }
+  
+  .action-content p {
+    font-size: 13px;
+    color: rgba(255,255,255,0.7);
+    margin: 0;
+    line-height: 1.5;
+  }
+  
+  /* Quotes Section */
+  .quotes-section {
+    margin-top: 32px;
+  }
+  
+  .quotes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-top: 20px;
+  }
+  
+  .quote-card {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    border-left: 3px solid #00d09c;
+  }
+  
+  .quote-text {
+    font-size: 14px;
+    font-style: italic;
+    color: #4a4a68;
+    margin: 0 0 12px 0;
+    line-height: 1.5;
+  }
+  
+  .quote-author {
+    font-size: 12px;
+    color: #888;
+    font-weight: 500;
+  }
+  
+  /* Stats */
+  .stats-section {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin: 32px 0;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+  }
+  
+  .stat-item {
+    text-align: center;
+  }
+  
+  .stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #00d09c;
+    margin: 0;
+  }
+  
+  .stat-label {
+    font-size: 12px;
+    color: #888;
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  /* CTA Buttons */
+  .cta-section {
+    text-align: center;
+    margin: 32px 0;
+  }
+  
+  .btn {
+    display: inline-block;
+    padding: 14px 28px;
+    background: #00d09c;
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    margin-right: 12px;
+  }
+  
+  .btn-outline {
+    display: inline-block;
+    padding: 14px 28px;
+    border: 2px solid #00d09c;
+    color: #00d09c;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+  }
+  
+  /* Footer */
+  .footer {
+    background: #f8f9fa;
+    padding: 24px 32px;
+    text-align: center;
+    font-size: 12px;
+    color: #888;
+  }
+  
+  .footer-brand {
+    font-weight: 600;
+    color: #1a1a2e;
+    margin-bottom: 4px;
+  }
+  
+  /* Mobile */
+  @media (max-width: 600px) {
+    .header-top {
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .header-meta {
+      flex-wrap: wrap;
+    }
+    
+    .theme-header {
+      flex-wrap: wrap;
+    }
+    
+    .quotes-grid {
+      grid-template-columns: 1fr;
+    }
+    
+    .stats-section {
+      grid-template-columns: 1fr;
+    }
+    
+    .btn, .btn-outline {
+      display: block;
+      margin: 8px 0;
+    }
+  }
 </style>
 </head>
 <body>
-  <div class="container">
+  <div class="email-wrapper">
+    <!-- Header -->
     <div class="header">
-      <h1>{{ product_name }} Weekly Pulse</h1>
-      <p>{{ iso_week }}</p>
+      <div class="header-top">
+        <div class="logo">FinPulse <span>Analytics</span></div>
+      </div>
+      <h1>{{ product_name }} — Weekly Review Pulse</h1>
+      <div class="header-meta">
+        <span class="badge">REPORT ID: {{ iso_week }}</span>
+        <span>Period: {{ window_start }} to {{ window_end }}</span>
+      </div>
     </div>
     
-    <p>Hi Team,</p>
-    <p>Here are the top themes discovered from this week's reviews:</p>
-    
-    {% for theme in themes %}
-    <div class="theme-card">
-      <strong>{{ theme.label }}</strong> ({{ theme.review_count }} reviews)
-      <p>{{ theme.description }}</p>
-    </div>
-    {% endfor %}
-    
-    <p>
-      {% if dashboard_link %}
-      <a href="{{ dashboard_link }}" class="btn">View in Emerald Ledger</a>
-      <a href="{{ doc_link }}" class="btn-outline">Open Google Doc</a>
-      {% else %}
-      <a href="{{ doc_link }}" class="btn">Read Full Report on Google Docs</a>
+    <!-- Content -->
+    <div class="content">
+      <!-- Stats -->
+      <div class="stats-section">
+        <div class="stat-item">
+          <p class="stat-value">{{ total_reviews }}</p>
+          <p class="stat-label">Reviews Analyzed</p>
+        </div>
+        <div class="stat-item">
+          <p class="stat-value">{{ themes|length }}</p>
+          <p class="stat-label">Key Themes</p>
+        </div>
+        <div class="stat-item">
+          <p class="stat-value">{{ avg_rating }}</p>
+          <p class="stat-label">Avg Rating</p>
+        </div>
+      </div>
+      
+      <!-- Top Themes -->
+      <h2 class="section-title">
+        Top Themes
+        <span class="section-subtitle">Aggregated Sentiment</span>
+      </h2>
+      
+      {% for theme in themes %}
+      <div class="theme-card {{ theme.sentiment }}">
+        <div class="theme-header">
+          <span class="theme-title">{{ theme.label }}</span>
+          <span class="sentiment-badge {{ theme.sentiment }}">{{ theme.sentiment.upper() }}</span>
+          <span class="theme-trend">{{ theme.review_count }} reviews</span>
+        </div>
+        <p class="theme-description">{{ theme.description }}</p>
+      </div>
+      {% endfor %}
+      
+      <!-- Action Ideas -->
+      {% if action_ideas %}
+      <div class="action-section">
+        <div class="action-header">
+          <span class="action-icon">💡</span>
+          <h3>Action Ideas</h3>
+        </div>
+        {% for action in action_ideas %}
+        <div class="action-item">
+          <span class="action-number">{{ loop.index|string|length > 1 and loop.index or '0' + loop.index|string }}</span>
+          <div class="action-content">
+            <h4>{{ action.title }}</h4>
+            <p>{{ action.description }}</p>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
       {% endif %}
-    </p>
+      
+      <!-- Real User Voices -->
+      {% if quotes %}
+      <div class="quotes-section">
+        <h2 class="section-title">💬 Real User Voices</h2>
+        <div class="quotes-grid">
+          {% for quote in quotes %}
+          <div class="quote-card">
+            <p class="quote-text">"{{ quote.text }}"</p>
+            <p class="quote-author">— {{ quote.rating }}★ ({{ quote.source }})</p>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+      
+      <!-- CTA -->
+      <div class="cta-section">
+        <a href="{{ doc_link }}" class="btn">📄 View Full Report</a>
+        {% if dashboard_link %}
+        <a href="{{ dashboard_link }}" class="btn-outline">📊 Open Dashboard</a>
+        {% endif %}
+      </div>
+    </div>
     
+    <!-- Footer -->
     <div class="footer">
-      <p>This is an automated report generated by Antigravity Pulse Agent.</p>
-      <p>Product: {{ product_name }} | ISO Week: {{ iso_week }}</p>
+      <p class="footer-brand">FinPulse Analytics</p>
+      <p>Automated Weekly Review Pulse • {{ product_name }} • {{ iso_week }}</p>
     </div>
   </div>
 </body>
