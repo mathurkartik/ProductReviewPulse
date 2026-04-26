@@ -81,9 +81,9 @@ def run_clustering(
             ).fetchall()
         ]
 
-    if not review_rows:
-        log.warning("clustering.no_reviews", run_id=run_id)
-        return {"cluster_count": 0, "noise_ratio": 0.0, "review_count": 0}
+    if len(review_rows) < 5:
+        log.warning("clustering.too_few_reviews", run_id=run_id, count=len(review_rows))
+        return {"cluster_count": 0, "noise_ratio": 0.0, "review_count": len(review_rows)}
 
     log.info("clustering.reviews_loaded", count=len(review_rows))
 

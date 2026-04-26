@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinPulse Analytics - Groww Weekly Review</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- Top Navigation Bar -->
+    <header class="top-nav">
+        <div class="top-nav-left">
+            <div class="logo">FinPulse <span>Analytics</span></div>
+            <nav class="top-links">
+                <a href="#" class="active">Reports</a>
+                <a href="#">Dashboard</a>
+            </nav>
+        </div>
+        <div class="top-nav-right">
+            <button class="icon-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+            </button>
+            <div class="profile-avatar">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            </div>
+        </div>
+    </header>
+
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>FinPulse</h2>
+                <span class="subtitle">INTERNAL REVIEW TOOL</span>
+            </div>
+            
+            <nav class="side-nav">
+                <a href="#" class="nav-item">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    Dashboard
+                </a>
+                <a href="#" class="nav-item active">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                    Reports
+                </a>
+                <a href="#" class="nav-item">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                    Sentiment Analysis
+                </a>
+                <a href="#" class="nav-item">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                    Settings
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <a href="#" class="nav-item">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                    Help Center
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            
+            <!-- Page Header -->
+            <div class="page-header">
+                <div class="header-titles">
+                    <h1>Groww — Weekly Review Pulse</h1>
+                    <div class="header-meta">
+                        <span class="badge">REPORT ID: WR-2023-42</span>
+                        <span class="period">Period: Last 8-12 weeks (rolling window)</span>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-primary">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        Export PDF
+                    </button>
+                    <button class="btn btn-outline">Share Link</button>
+                </div>
+            </div>
+
+            <!-- Top Grid Layout -->
+            <div class="grid-layout-top">
+                
+                <!-- Top Themes Card -->
+                <div class="card themes-card">
+                    <div class="card-header">
+                        <h3>Top Themes</h3>
+                        <span class="card-subtitle">AGGREGATED SENTIMENT</span>
+                    </div>
+                    <div class="themes-list">
+                        <!-- Theme 1 -->
+                        <div class="theme-item theme-critical">
+                            <div class="theme-title-row">
+                                <h4>App performance & bugs</h4>
+                                <span class="tag tag-critical"><span class="dot"></span> CRITICAL</span>
+                                <span class="trend trend-critical">42% Growth</span>
+                            </div>
+                            <p>Systematic lag, frequent app crashes, and login timeouts reported across various regions.</p>
+                        </div>
+                        <!-- Theme 2 -->
+                        <div class="theme-item theme-negative">
+                            <div class="theme-title-row">
+                                <h4>Customer support friction</h4>
+                                <span class="tag tag-negative"><span class="dot"></span> NEGATIVE</span>
+                                <span class="trend trend-negative">28% Impact</span>
+                            </div>
+                            <p>Increasing dissatisfaction with slow response times and non-resolution of complex queries.</p>
+                        </div>
+                        <!-- Theme 3 -->
+                        <div class="theme-item theme-neutral">
+                            <div class="theme-title-row">
+                                <h4>UX & feature gaps</h4>
+                                <span class="tag tag-neutral"><span class="dot"></span> NEUTRAL</span>
+                                <span class="trend trend-neutral">15% Trend</span>
+                            </div>
+                            <p>Users finding certain navigation paths confusing; requests for advanced technical analysis tools.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column for Sentiment & Actions -->
+                <div class="right-col">
+                    
+                    <!-- Market Sentiment Card -->
+                    <div class="card sentiment-card">
+                        <div class="card-header">
+                            <h3>Market Sentiment</h3>
+                        </div>
+                        <div class="sentiment-chart-container">
+                            <!-- SVG Donut Chart -->
+                            <div class="donut-chart">
+                                <svg viewBox="0 0 36 36" class="circular-chart">
+                                    <path class="circle-bg"
+                                        d="M18 2.0845
+                                        a 15.9155 15.9155 0 0 1 0 31.831
+                                        a 15.9155 15.9155 0 0 1 0 -31.831"
+                                    />
+                                    <path class="circle"
+                                        stroke-dasharray="62, 100"
+                                        d="M18 2.0845
+                                        a 15.9155 15.9155 0 0 1 0 31.831
+                                        a 15.9155 15.9155 0 0 1 0 -31.831"
+                                    />
+                                </svg>
+                                <div class="donut-content">
+                                    <span class="donut-number">62</span>
+                                    <span class="donut-label">VOLATILITY</span>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="sentiment-desc">Sentiment score is down 12% from previous rolling window due to API instability.</p>
+                    </div>
+
+                    <!-- Action Ideas Card -->
+                    <div class="card action-card">
+                        <div class="action-header">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00D09C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"></path><path d="M10 22h4"></path><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"></path></svg>
+                            <h3>Action Ideas</h3>
+                        </div>
+                        <div class="action-list">
+                            <div class="action-item">
+                                <div class="action-num">01.</div>
+                                <div class="action-text">
+                                    <h4>Stabilize peak-time performance</h4>
+                                    <p>Optimize socket connections during market open (9:15 AM).</p>
+                                </div>
+                            </div>
+                            <div class="action-item">
+                                <div class="action-num">02.</div>
+                                <div class="action-text">
+                                    <h4>Improve support SLA visibility</h4>
+                                    <p>Add real-time queue position indicators in the help desk.</p>
+                                </div>
+                            </div>
+                            <div class="action-item">
+                                <div class="action-num">03.</div>
+                                <div class="action-text">
+                                    <h4>Enhance power-user features</h4>
+                                    <p>Roll out advanced charting beta for high-AUM accounts.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Quotes Section -->
+            <div class="card quotes-card">
+                <div class="card-header">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00D09C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"></path><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"></path></svg>
+                    <h3>Real User Voices</h3>
+                </div>
+                <div class="quotes-grid">
+                    <div class="quote-box">
+                        <p class="quote-text">"The app freezes exactly when the market opens, very frustrating."</p>
+                        <p class="quote-author">— High Frequency Trader</p>
+                    </div>
+                    <div class="quote-box">
+                        <p class="quote-text">"Support takes days to reply and doesn't solve the issue."</p>
+                        <p class="quote-author">— Verified User</p>
+                    </div>
+                    <div class="quote-box">
+                        <p class="quote-text">"Good for beginners but lacks detailed analysis tools."</p>
+                        <p class="quote-author">— Advanced Investor</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Operational Insights Section -->
+            <div class="card metrics-card">
+                <div class="card-header">
+                    <h3>Operational Insights</h3>
+                    <div class="legend">
+                        <span class="legend-item"><span class="dot dot-success"></span> SUCCESS</span>
+                        <span class="legend-item"><span class="dot dot-danger"></span> FAILURES</span>
+                    </div>
+                </div>
+                <div class="metrics-grid">
+                    <div class="metric-item">
+                        <span class="metric-label">API UPTIME</span>
+                        <span class="metric-value">99.92%</span>
+                        <div class="progress-bar"><div class="progress fill-success" style="width: 99.92%;"></div></div>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">AVG LATENCY</span>
+                        <span class="metric-value">24ms</span>
+                        <div class="progress-bar"><div class="progress fill-success" style="width: 24%;"></div></div>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">TICKET VOLUME</span>
+                        <span class="metric-value">1.2k <span class="metric-unit">/day</span></span>
+                        <div class="progress-bar"><div class="progress fill-danger" style="width: 80%;"></div></div>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">USER CHURN RISK</span>
+                        <span class="metric-value">Medium</span>
+                        <div class="progress-bar"><div class="progress fill-neutral" style="width: 50%;"></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Layout -->
+            <div class="bottom-layout">
+                <div class="solves-section">
+                    <h3>What this solves</h3>
+                    <p>This report identifies critical technical bottlenecks causing user drop-off and provides a direct roadmap for CX alignment. By focusing on peak-time stability, we protect the primary revenue window.</p>
+                </div>
+                
+                <div class="metadata-card">
+                    <h4>MCP DELIVERY METADATA</h4>
+                    <ul class="meta-list">
+                        <li>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                            Archived: <a href="#">Groww_WR_42.doc</a>
+                        </li>
+                        <li>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                            Email sent to stakeholders
+                        </li>
+                        <li>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                            Next review: Oct 28, 2023
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+</body>
+</html>

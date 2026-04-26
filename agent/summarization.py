@@ -308,152 +308,158 @@ class Summarizer:
         self.llm = LLMClient(settings)
 
     def run_summarization(self, run_id: str) -> PulseSummary:
+        import contextlib
         log.info("summarize.start", run_id=run_id)
 
-        conn = get_connection(self.settings.env.db_path)
-        cursor = conn.cursor()
+        with contextlib.closing(get_connection(self.settings.env.db_path)) as conn:
+            cursor = conn.cursor()
 
-        run = cursor.execute("SELECT * FROM runs WHERE id = ?", (run_id,)).fetchone()
-        if not run:
-            conn.close()
-            raise ValueError(f"Run {run_id} not found")
+            run = cursor.execute("SELECT * FROM runs WHERE id = ?", (run_id,)).fetchone()
+            if not run:
+                raise ValueError(f"Run {run_id} not found")
 
-        product_key = run["product_key"]
+            product_key = run["product_key"]
 
-        # Calculate stats for the run
-        total_reviews = cursor.execute(
-            "SELECT COUNT(*) FROM reviews WHERE product_key = ?", (product_key,)
-        ).fetchone()[0]
-        avg_rating_row = cursor.execute(
-            "SELECT AVG(rating) FROM reviews WHERE product_key = ?", (product_key,)
-        ).fetchone()[0]
-        avg_rating = round(avg_rating_row, 2) if avg_rating_row else 0.0
+            # Calculate stats for the run
+            total_reviews = cursor.execute(
+                "SELECT COUNT(*) FROM reviews WHERE product_key = ?", (product_key,)
+            ).fetchone()[0]
+            avg_rating_row = cursor.execute(
+                "SELECT AVG(rating) FROM reviews WHERE product_key = ?", (product_key,)
+            ).fetchone()[0]
+            avg_rating = round(avg_rating_row, 2) if avg_rating_row else 0.0
 
-        clusters = cursor.execute(
-            """SELECT * FROM clusters WHERE run_id = ? ORDER BY json_array_length(review_ids_json) DESC LIMIT 6""",
-            (run_id,),
-        ).fetchall()
-
-        if not clusters:
-            conn.close()
-            raise ValueError(f"No clusters found for run {run_id}")
-
-        discovered_themes: list[Theme] = []
-        all_quotes: list[Quote] = []
-
-        # Sort out sentiment weights since we now use literal negative/mixed/positive
-        sentiment_score_map = {"negative": 1.0, "mixed": 0.5, "positive": 1.0}
-
-        for c in clusters:
-            cluster_id = c["id"]
-            review_ids = json.loads(c["review_ids_json"])
-            keyphrases = json.loads(c["keyphrases_json"])
-
-            placeholders = ",".join(["?"] * len(review_ids))
-            reviews_data = cursor.execute(
-                f"SELECT id, body, rating, source FROM reviews WHERE id IN ({placeholders}) LIMIT 30",
-                review_ids,
+            clusters = cursor.execute(
+                """SELECT * FROM clusters WHERE run_id = ? ORDER BY json_array_length(review_ids_json) DESC LIMIT 6""",
+                (run_id,),
             ).fetchall()
 
-            bodies = [r["body"] for r in reviews_data]
-            metadata = [{"rating": r["rating"], "source": r["source"]} for r in reviews_data]
+            if not clusters:
+                raise ValueError(f"No clusters found for run {run_id}")
 
-            medoid_row = cursor.execute(
-                "SELECT body FROM reviews WHERE id = ?", (c["medoid_review_id"],)
-            ).fetchone()
-            medoid_body = medoid_row["body"] if medoid_row else bodies[0]
+            discovered_themes: list[Theme] = []
+            all_quotes: list[Quote] = []
 
-            theme_data = label_theme(
-                self.llm, keyphrases=keyphrases, medoid_body=medoid_body, sample_bodies=bodies
+            # Sort out sentiment weights since we now use literal negative/mixed/positive
+            sentiment_score_map = {"negative": 1.0, "mixed": 0.5, "positive": 1.0}
+
+            for c in clusters:
+                cluster_id = c["id"]
+                review_ids = json.loads(c["review_ids_json"])
+                keyphrases = json.loads(c["keyphrases_json"])
+
+                placeholders = ",".join(["?"] * len(review_ids))
+                reviews_data = cursor.execute(
+                    f"SELECT id, body, rating, source FROM reviews WHERE id IN ({placeholders}) LIMIT 30",
+                    review_ids,
+                ).fetchall()
+
+                bodies = [r["body"] for r in reviews_data]
+                metadata = [{"rating": r["rating"], "source": r["source"]} for r in reviews_data]
+
+                medoid_row = cursor.execute(
+                    "SELECT body FROM reviews WHERE id = ?", (c["medoid_review_id"],)
+                ).fetchone()
+                medoid_body = medoid_row["body"] if medoid_row else bodies[0]
+
+                theme_data = label_theme(
+                    self.llm, keyphrases=keyphrases, medoid_body=medoid_body, sample_bodies=bodies
+                )
+                log.info(
+                    "summarize.theme_labeled",
+                    cluster_id=cluster_id,
+                    theme=theme_data.get("label"),
+                    count=len(review_ids),
+                )
+
+                quotes = select_quotes(
+                    self.llm,
+                    theme_name=theme_data.get("label", "Unknown"),
+                    review_bodies=bodies,
+                    review_metadata=metadata,
+                    review_pool_for_validation=bodies,
+                )
+                log.info("summarize.quotes_selected", theme=theme_data.get("label"), valid=len(quotes))
+
+                all_quotes.extend(quotes)
+
+                sentiment = theme_data.get("sentiment", "mixed")
+                if sentiment not in ("negative", "mixed", "positive"):
+                    sentiment = "mixed"
+
+                theme = Theme(
+                    id=f"theme-{cluster_id}",
+                    rank=0,
+                    label=theme_data.get("label", "Unknown"),
+                    description=theme_data.get("description", ""),
+                    sentiment=sentiment,
+                    review_count=len(review_ids),
+                    representative_review_ids=review_ids[:10],
+                )
+                discovered_themes.append(theme)
+
+            # Rank themes
+            discovered_themes.sort(
+                key=lambda t: t.review_count * sentiment_score_map.get(t.sentiment, 0.5), reverse=True
             )
-            log.info(
-                "summarize.theme_labeled",
-                cluster_id=cluster_id,
-                theme=theme_data.get("label"),
-                count=len(review_ids),
+            top_themes = discovered_themes[:3]
+
+            for i, theme in enumerate(top_themes):
+                theme.rank = i + 1
+
+            if top_themes:
+                action_ideas = generate_action_ideas(self.llm, top_themes, product_key)
+                what_this_solves = generate_what_this_solves(self.llm, top_themes, product_key)
+            else:
+                action_ideas = []
+                what_this_solves = []
+
+            window_start_date = (
+                datetime.strptime(run["window_start"], "%Y-%m-%d").date()
+                if isinstance(run["window_start"], str)
+                else run["window_start"]
+            )
+            window_end_date = (
+                datetime.strptime(run["window_end"], "%Y-%m-%d").date()
+                if isinstance(run["window_end"], str)
+                else run["window_end"]
+            )
+            # Approximate weeks (in actual run this would be passed or saved)
+            window_weeks = (window_end_date - window_start_date).days // 7
+
+            pulse_summary = PulseSummary(
+                product=product_key,
+                window=Window(start=window_start_date, end=window_end_date, weeks=window_weeks),
+                stats=PulseStats(total_reviews=total_reviews, avg_rating=avg_rating),
+                top_themes=top_themes,
+                quotes=all_quotes[:3],
+                action_ideas=action_ideas,
+                what_this_solves=what_this_solves,
+                metrics=self.llm.metrics,
             )
 
-            quotes = select_quotes(
-                self.llm,
-                theme_name=theme_data.get("label", "Unknown"),
-                review_bodies=bodies,
-                review_metadata=metadata,
-                review_pool_for_validation=bodies,
-            )
-            log.info("summarize.quotes_selected", theme=theme_data.get("label"), valid=len(quotes))
+            with conn:
+                for theme in top_themes:
+                    cursor.execute(
+                        """INSERT OR REPLACE INTO themes
+                           (id, run_id, rank, label, description, sentiment, review_count, representative_review_ids_json)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                        (
+                            theme.id,
+                            run_id,
+                            theme.rank,
+                            theme.label,
+                            theme.description,
+                            theme.sentiment,
+                            theme.review_count,
+                            json.dumps(theme.representative_review_ids),
+                        ),
+                    )
 
-            all_quotes.extend(quotes)
-
-            theme = Theme(
-                id=f"theme-{cluster_id}",
-                rank=0,
-                label=theme_data["label"],
-                description=theme_data["description"],
-                sentiment=theme_data.get("sentiment", "mixed"),
-                review_count=len(review_ids),
-                representative_review_ids=review_ids[:10],
-            )
-            discovered_themes.append(theme)
-
-        # Rank themes
-        discovered_themes.sort(
-            key=lambda t: t.review_count * sentiment_score_map.get(t.sentiment, 0.5), reverse=True
-        )
-        top_themes = discovered_themes[:3]
-
-        for i, theme in enumerate(top_themes):
-            theme.rank = i + 1
-
-        action_ideas = generate_action_ideas(self.llm, top_themes, product_key)
-        what_this_solves = generate_what_this_solves(self.llm, top_themes, product_key)
-
-        window_start_date = (
-            datetime.strptime(run["window_start"], "%Y-%m-%d").date()
-            if isinstance(run["window_start"], str)
-            else run["window_start"]
-        )
-        window_end_date = (
-            datetime.strptime(run["window_end"], "%Y-%m-%d").date()
-            if isinstance(run["window_end"], str)
-            else run["window_end"]
-        )
-        # Approximate weeks (in actual run this would be passed or saved)
-        window_weeks = (window_end_date - window_start_date).days // 7
-
-        pulse_summary = PulseSummary(
-            product=product_key,
-            window=Window(start=window_start_date, end=window_end_date, weeks=window_weeks),
-            stats=PulseStats(total_reviews=total_reviews, avg_rating=avg_rating),
-            top_themes=top_themes,
-            quotes=all_quotes[:3],
-            action_ideas=action_ideas,
-            what_this_solves=what_this_solves,
-            metrics=self.llm.metrics,
-        )
-
-        for theme in top_themes:
-            cursor.execute(
-                """INSERT OR REPLACE INTO themes
-                   (id, run_id, rank, label, description, sentiment, review_count, representative_review_ids_json)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                (
-                    theme.id,
-                    run_id,
-                    theme.rank,
-                    theme.label,
-                    theme.description,
-                    theme.sentiment,
-                    theme.review_count,
-                    json.dumps(theme.representative_review_ids),
-                ),
-            )
-
-        cursor.execute(
-            "UPDATE runs SET metrics_json = ?, status = 'summarized', updated_at = ? WHERE id = ?",
-            (self.llm.metrics.model_dump_json(), datetime.now(UTC).isoformat(), run_id),
-        )
-        conn.commit()
-        conn.close()
+                cursor.execute(
+                    "UPDATE runs SET metrics_json = ?, status = 'summarized', updated_at = ? WHERE id = ?",
+                    (self.llm.metrics.model_dump_json(), datetime.now(UTC).isoformat(), run_id),
+                )
 
         summary_dir = Path("data/summaries")
         summary_dir.mkdir(parents=True, exist_ok=True)

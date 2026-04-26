@@ -2,14 +2,13 @@ import logging
 import os
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from gmail_tool import search_messages, create_draft, send_message
 
 # Re-create credentials.json from environment variable for Google libraries
 if os.environ.get("GOOGLE_CREDENTIALS_JSON"):
-    with open("credentials.json", "w") as f:
+    creds_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "credentials.json")
+    with open(creds_path, "w") as f:
         f.write(os.environ.get("GOOGLE_CREDENTIALS_JSON"))
 
-logging.basicConfig(level=logging.INFO)
 # ---------------- LOGGING SETUP ---------------- #
 logging.basicConfig(
     level=logging.INFO,

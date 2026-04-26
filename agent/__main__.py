@@ -165,7 +165,7 @@ def ingest(
     audit_file = audit_dir / f"{run_id}.jsonl"
     with audit_file.open("w", encoding="utf-8") as f:
         for rev in reviews:
-            f.write(rev.model_dump_json() + "\\n")
+            f.write(rev.model_dump_json() + "\n")
 
     set_run_status(settings.env.db_path, run_id, "ingested")
     log.info("ingest.done", file=str(audit_file), count=len(reviews))
@@ -232,6 +232,7 @@ def summarize(
     _setup_logging()
 
     from agent.summarization import Summarizer
+    from agent.summarization_models import PulseCostExceeded
 
     settings = load_settings()
 
@@ -253,9 +254,12 @@ def summarize(
     try:
         summarizer = Summarizer(settings)
         summary = summarizer.run_summarization(run)
+    except PulseCostExceeded as e:
+        log.error("summarize.cost_exceeded", run_id=run, spent=e.spent, cap=e.cap)
+        storage.set_run_status(settings.env.db_path, run, "failed")
+        raise typer.Exit(code=1) from e
     except Exception as e:
         log.error("summarize.failed", run_id=run, error=str(e))
-        # Optional: set_run_status(failed) but usually we allow retry
         raise typer.Exit(code=1) from e
 
     log.info("summarize.done", run_id=run, themes=[t.label for t in summary.top_themes])
@@ -365,6 +369,9 @@ def publish(
 
     session = MCPSession(url)
 
+    docs_success = False
+    gmail_success = False
+
     if target in ("docs", "both"):
         did = doc_id
         if not did:
@@ -389,11 +396,13 @@ def publish(
                     typer.echo(f"[SKIP] Document already up to date: {deep_link}")
                 else:
                     typer.echo(f"[OK] Appended to Google Doc: {deep_link}")
+                docs_success = True
             except Exception as e:
                 log.error("publish.docs.failed", error=str(e))
                 deep_link = f"https://docs.google.com/document/d/{did}"
     else:
         deep_link = "https://docs.google.com/document"
+        docs_success = True
 
     if target in ("gmail", "both"):
         from agent.mcp_client.gmail_ops import send_pulse_email
@@ -409,6 +418,9 @@ def publish(
         recipients_bcc = product_config.recipients.bcc
 
         if not recipients_to:
+            if settings.env.pulse_env == "production":
+                log.error("publish.gmail.no_recipients", msg="recipients.to is empty in production")
+                raise typer.Exit(code=1)
             recipients_to = ["product-team@example.com"]
 
         confirm_send = settings.effective_confirm_send
@@ -442,12 +454,19 @@ def publish(
                 typer.echo(f"[OK] Sent Gmail: message_id={result.get('message_id')}")
             else:
                 typer.echo(f"[OK] Created Gmail draft: draft_id={result.get('draft_id')}")
+            gmail_success = True
         except Exception as e:
             log.error("publish.gmail.failed", error=str(e))
+    else:
+        gmail_success = True
 
     # Update status
-    storage.set_run_status(settings.env.db_path, run, "published")
-    log.info("publish.done", run_id=run)
+    if docs_success or gmail_success:
+        storage.set_run_status(settings.env.db_path, run, "published")
+        log.info("publish.done", run_id=run)
+    else:
+        log.error("publish.all_failed", run_id=run)
+        raise typer.Exit(code=1)
 
 
 # ---------------------------------------------------------------------------

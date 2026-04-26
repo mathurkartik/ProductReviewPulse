@@ -129,6 +129,7 @@ def get_connection(db_path: Path) -> sqlite3.Connection:
     db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA busy_timeout=5000")
     return conn
 
 
@@ -239,8 +240,6 @@ def get_run_status(db_path: Path, run_id: str) -> str | None:
 
 def set_run_gmail_id(db_path: Path, run_id: str, message_id: str) -> None:
     """Update the Gmail message/draft ID for the run."""
-    import contextlib
-
     with contextlib.closing(get_connection(db_path)) as conn:
         with conn:
             conn.execute(

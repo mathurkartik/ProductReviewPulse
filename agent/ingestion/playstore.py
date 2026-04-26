@@ -38,7 +38,7 @@ def fetch_playstore_reviews(
 
             if review_date < since:
                 older_found = True
-                continue
+                break
 
             body_text = review.get("content", "")
             if not is_valid_review(body_text, language="en"):

@@ -13,6 +13,45 @@ from agent.ingestion.pii import scrub_pii
 log = structlog.get_logger()
 
 
+def _parse_date(date_str: str, since: datetime) -> datetime:
+    try:
+        review_date = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+    except ValueError:
+        review_date = datetime.now(UTC)
+    if review_date.tzinfo is None:
+        review_date = review_date.replace(tzinfo=since.tzinfo)
+    return review_date
+
+
+def _process_review(
+    product_key: str,
+    external_id: str,
+    title: str | None,
+    body: str,
+    rating: int | None,
+    review_date: datetime,
+    version: str | None,
+) -> RawReview | None:
+    if not is_valid_review(body, language="en"):
+        return None
+
+    body_scrubbed = scrub_pii(body)
+    rev_id = hashlib.sha1(f"appstore{external_id}".encode()).hexdigest()
+    return RawReview(
+        id=rev_id,
+        product_key=product_key,
+        source="appstore",
+        external_id=external_id,
+        rating=rating or 0,
+        title=title,
+        body=body_scrubbed,
+        posted_at=review_date,
+        version=version,
+        language="en",
+        country="in",
+    )
+
+
 def fetch_appstore_reviews(
     product_key: str, app_store_id: str, since: datetime
 ) -> Generator[RawReview, None, None]:
@@ -42,36 +81,20 @@ def fetch_appstore_reviews(
                         external_id = entry.get("id", {}).get("label", "")
                         body_text = entry.get("content", {}).get("label", "")
                         date_str = entry.get("updated", {}).get("label", "")
-                        try:
-                            review_date = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
-                        except ValueError:
-                            review_date = datetime.now(UTC)
+                        review_date = _parse_date(date_str, since)
 
-                        if review_date.tzinfo is None:
-                            review_date = review_date.replace(tzinfo=since.tzinfo)
                         if review_date < since:
                             return
 
                         rating = int(entry.get("im:rating", {}).get("label", "0"))
-
-                        if not is_valid_review(body_text, language="en"):
-                            continue
-
-                        body_scrubbed = scrub_pii(body_text)
-                        rev_id = hashlib.sha1(f"appstore{external_id}".encode()).hexdigest()
-                        yield RawReview(
-                            id=rev_id,
-                            product_key=product_key,
-                            source="appstore",
-                            external_id=external_id,
-                            rating=rating,
-                            title=entry.get("title", {}).get("label"),
-                            body=body_scrubbed,
-                            posted_at=review_date,
-                            version=entry.get("im:version", {}).get("label"),
-                            language="en",
-                            country="in",
+                        version = entry.get("im:version", {}).get("label")
+                        
+                        rev = _process_review(
+                            product_key, external_id, entry.get("title", {}).get("label"),
+                            body_text, rating, review_date, version
                         )
+                        if rev:
+                            yield rev
                 else:
                     break
         except Exception:
@@ -80,7 +103,6 @@ def fetch_appstore_reviews(
     # 2. Fallback: Scrape HTML if RSS was empty
     if not found_any:
         import json
-
         from bs4 import BeautifulSoup
 
         url = f"https://apps.apple.com/in/app/reviews/id{app_store_id}"
@@ -123,37 +145,17 @@ def fetch_appstore_reviews(
                                         ).hexdigest()
                                     )
 
-                                    try:
-                                        review_date = datetime.fromisoformat(
-                                            date_str.replace("Z", "+00:00")
-                                        )
-                                    except ValueError:
-                                        review_date = datetime.now(UTC)
-
-                                    if review_date.tzinfo is None:
-                                        review_date = review_date.replace(tzinfo=since.tzinfo)
+                                    review_date = _parse_date(date_str, since)
                                     if review_date < since:
                                         continue
 
-                                    if not is_valid_review(body, language="en"):
-                                        continue
-
-                                    body_scrubbed = scrub_pii(body)
-                                    rev_id = hashlib.sha1(f"appstore{ext_id}".encode()).hexdigest()
-                                    count += 1
-                                    yield RawReview(
-                                        id=rev_id,
-                                        product_key=product_key,
-                                        source="appstore",
-                                        external_id=str(ext_id),
-                                        rating=int(rating) if rating else None,
-                                        title=title,
-                                        body=body_scrubbed,
-                                        posted_at=review_date,
-                                        version=None,
-                                        language="en",
-                                        country="in",
+                                    rev = _process_review(
+                                        product_key, str(ext_id), title, body,
+                                        int(rating) if rating else None, review_date, None
                                     )
+                                    if rev:
+                                        count += 1
+                                        yield rev
                                 log.info("ingest.appstore.fallback.extracted", count=count)
                         except Exception as e:
                             log.error("ingest.appstore.fallback.parse_error", error=str(e))
