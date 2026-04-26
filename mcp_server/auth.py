@@ -9,7 +9,8 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 SCOPES = [
     "https://www.googleapis.com/auth/documents",
-    "https://www.googleapis.com/auth/gmail.compose"
+    "https://www.googleapis.com/auth/gmail.compose",
+    "https://www.googleapis.com/auth/gmail.labels"
 ]
 
 def get_creds():
