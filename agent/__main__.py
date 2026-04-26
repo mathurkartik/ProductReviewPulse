@@ -86,33 +86,40 @@ def ingest(
 
     upsert_product(
         settings.env.db_path,
-        product_key=product_config.key,
-        display_name=product_config.display_name,
-        app_store_id=product_config.app_store_id,
-        play_store_id=product_config.play_store_id,
+        key=product_config.key,
+        display=product_config.display_name,
+        appstore_id=product_config.appstore_id,
+        play_package=product_config.play_package,
     )
         
+    now = datetime.now(UTC)
+    since_date = now - timedelta(weeks=weeks)
+    
     iso_week = current_iso_week()
     run_id = make_run_id(product, iso_week)
     
-    upsert_run(settings.env.db_path, run_id=run_id, product_key=product, iso_week=iso_week, window_weeks=weeks)
+    upsert_run(
+        settings.env.db_path,
+        run_id=run_id,
+        product_key=product,
+        iso_week=iso_week,
+        window_start=since_date.date().isoformat(),
+        window_end=now.date().isoformat()
+    )
     set_run_status(settings.env.db_path, run_id, "pending")
-    
-    now = datetime.now(UTC)
-    since_date = now - timedelta(weeks=weeks)
     
     log.info("ingest.start", product=product, weeks=weeks, since=since_date.isoformat(), run_id=run_id)
     
     reviews = []
     
-    if product_config.app_store_id:
-        log.info("ingest.appstore.start", app_store_id=product_config.app_store_id)
-        for rev in fetch_appstore_reviews(product, product_config.app_store_id, since_date):
+    if product_config.appstore_id:
+        log.info("ingest.appstore.start", appstore_id=product_config.appstore_id)
+        for rev in fetch_appstore_reviews(product, product_config.appstore_id, since_date):
             reviews.append(rev)
             
-    if product_config.play_store_id:
-        log.info("ingest.playstore.start", play_store_id=product_config.play_store_id)
-        for rev in fetch_playstore_reviews(product, product_config.play_store_id, since_date):
+    if product_config.play_package:
+        log.info("ingest.playstore.start", play_package=product_config.play_package)
+        for rev in fetch_playstore_reviews(product, product_config.play_package, since_date):
             reviews.append(rev)
             
     log.info("ingest.fetched", count=len(reviews))
@@ -129,19 +136,23 @@ def ingest(
                 conn.execute(
                     """
                     INSERT OR REPLACE INTO reviews
-                    (id, product_key, source, external_id, body, rating, review_date, language, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (id, product_key, source, external_id, rating, title, body, posted_at, version, language, country, ingested_at, raw_json)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         rev.id,
                         rev.product_key,
                         rev.source,
                         rev.external_id,
-                        rev.body,
                         rev.rating,
-                        rev.review_date.isoformat(),
+                        rev.title,
+                        rev.body,
+                        rev.posted_at.isoformat(),
+                        rev.version,
                         rev.language,
-                        now.isoformat()
+                        rev.country,
+                        now.isoformat(),
+                        rev.model_dump_json()
                     )
                 )
                 
@@ -245,10 +256,10 @@ def summarize(
         # Optional: set_run_status(failed) but usually we allow retry
         raise typer.Exit(code=1) from e
 
-    log.info("summarize.done", run_id=run, themes=[t.name for t in summary.themes])
+    log.info("summarize.done", run_id=run, themes=[t.label for t in summary.top_themes])
     typer.echo(f"[OK] Summarization complete for {run}")
-    for i, theme in enumerate(summary.themes, 1):
-        typer.echo(f"  {i}. {theme.name} ({theme.review_count} reviews)")
+    for i, theme in enumerate(summary.top_themes, 1):
+        typer.echo(f"  {i}. {theme.label} ({theme.review_count} reviews)")
 
 
 
@@ -283,7 +294,7 @@ def render(
 
     log.info("render.start", run_id=run)
 
-    product_config = settings.get_product(summary.product_key)
+    product_config = settings.get_product(summary.product)
 
     # 1. Generate Doc Requests
     doc_requests = generate_doc_requests(summary, product_config.display_name)
@@ -328,8 +339,7 @@ def publish(
     _setup_logging()
 
     from agent.summarization_models import PulseSummary
-    from agent.mcp_client.docs_ops import append_pulse_section
-    from agent.mcp_client.gmail_ops import create_pulse_draft
+    from agent.mcp_client.docs_ops import append_pulse_section, resolve_document
     from pathlib import Path
 
     settings = load_settings()
@@ -347,31 +357,85 @@ def publish(
     with open(summary_path, "r", encoding="utf-8") as f:
         summary = PulseSummary.model_validate_json(f.read())
 
-    product_config = settings.get_product(summary.product_key)
+    product_config = settings.get_product(summary.product)
+
+    from agent.mcp_client.session import MCPSession
+    
+    session = MCPSession(url)
 
     if target in ("docs", "both"):
-        did = doc_id or "1vP6uU9U1Rk5O7Q-O7W0A0_3Q_3W_3W_3W_3W_3W_3" # Placeholder or from config
-        # In a real app, we'd store doc_id in products.yaml or a persistent store
+        did = doc_id
         if not did:
-            log.error("publish.no_doc_id", msg="No doc_id provided and none found in config")
+            log.info("publish.docs.resolving", product=product_config.display_name)
+            try:
+                did = resolve_document(session, product_config.display_name, product_config.key, settings.env.db_path)
+            except Exception as e:
+                log.error("publish.docs.resolve_failed", error=str(e))
+                
+        if not did:
+            log.error("publish.no_doc_id", msg="Could not resolve doc_id")
+            deep_link = "https://docs.google.com/document"
         else:
             log.info("publish.docs.start", run_id=run, doc_id=did)
             try:
-                append_pulse_section(url, did, summary)
-                typer.echo(f"[OK] Appended to Google Doc: {did}")
+                result = append_pulse_section(session, did, summary, product_config.display_name)
+                deep_link = result.get("deep_link", f"https://docs.google.com/document/d/{did}")
+                
+                if result.get("status") == "skipped":
+                    typer.echo(f"[SKIP] Document already up to date: {deep_link}")
+                else:
+                    typer.echo(f"[OK] Appended to Google Doc: {deep_link}")
             except Exception as e:
                 log.error("publish.docs.failed", error=str(e))
+                deep_link = f"https://docs.google.com/document/d/{did}"
+    else:
+        deep_link = "https://docs.google.com/document"
 
     if target in ("gmail", "both"):
-        recipient = to or (product_config.recipients.to[0] if product_config.recipients.to else None)
-        if not recipient:
-            # For testing, we can use a dummy
-            recipient = "kartik@example.com"
+        from agent.mcp_client.gmail_ops import send_pulse_email
         
-        log.info("publish.gmail.start", run_id=run, to=recipient)
+        artifact_dir = Path("data/artifacts") / run
+        with open(artifact_dir / "email.txt", "r", encoding="utf-8") as f:
+            email_txt = f.read().replace("{DOC_DEEP_LINK}", deep_link)
+        with open(artifact_dir / "email.html", "r", encoding="utf-8") as f:
+            email_html = f.read().replace("{DOC_DEEP_LINK}", deep_link)
+
+        recipients_to = [to] if to else product_config.recipients.to
+        recipients_cc = product_config.recipients.cc
+        recipients_bcc = product_config.recipients.bcc
+        
+        if not recipients_to:
+            recipients_to = ["product-team@example.com"]
+            
+        confirm_send = settings.effective_confirm_send
+        top_theme = summary.top_themes[0].label if summary.top_themes else "Review Pulse"
+        
+        iso_week_str = f"{summary.window.end.year}-W{summary.window.end.isocalendar()[1]:02d}"
+        subject = f"[Weekly Pulse] {product_config.display_name} — {iso_week_str} — {top_theme}"
+        subject = subject[:197] + "..." if len(subject) > 200 else subject
+        
+        log.info("publish.gmail.start", run_id=run, to=recipients_to, confirm_send=confirm_send)
         try:
-            create_pulse_draft(url, recipient, summary, product_config.display_name)
-            typer.echo(f"[OK] Created Gmail draft for: {recipient}")
+            result = send_pulse_email(
+                session=session,
+                run_id=run,
+                to=recipients_to,
+                cc=recipients_cc,
+                bcc=recipients_bcc,
+                subject=subject,
+                html=email_html,
+                text=email_txt,
+                product_name=product_config.display_name,
+                confirm_send=confirm_send,
+                db_path=settings.env.db_path
+            )
+            
+            if result.get("status") == "skipped":
+                typer.echo(f"[SKIP] Email already sent/drafted: message_id={result.get('message_id')}")
+            elif result.get("status") == "sent":
+                typer.echo(f"[OK] Sent Gmail: message_id={result.get('message_id')}")
+            else:
+                typer.echo(f"[OK] Created Gmail draft: draft_id={result.get('draft_id')}")
         except Exception as e:
             log.error("publish.gmail.failed", error=str(e))
 
@@ -438,7 +502,7 @@ def run_pipeline(
         
     # 5. Publish
     if status == "rendered":
-        publish(run=run_id, target=publish_target, doc_id=doc_id)
+        publish(run=run_id, target=publish_target, doc_id=doc_id, to=None)
         status = "published"
     else:
         log.info("pipeline.skip_publish", status=status)

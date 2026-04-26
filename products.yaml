@@ -1,8 +1,8 @@
 products:
   - key: groww
     display_name: Groww
-    app_store_id: "1404871703"
-    play_store_id: com.nextbillion.groww
+    appstore_id: "1404871703"
+    play_package: com.nextbillion.groww
     recipients:
       to: []
       cc: []

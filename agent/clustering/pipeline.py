@@ -69,7 +69,7 @@ def run_clustering(
     with contextlib.closing(sqlite3.connect(db_path)) as conn:
         conn.row_factory = sqlite3.Row
         run_row = conn.execute(
-            "SELECT product_key FROM runs WHERE run_id = ?", (run_id,)
+            "SELECT product_key FROM runs WHERE id = ?", (run_id,)
         ).fetchone()
         if not run_row:
             raise ValueError(f"Run {run_id!r} not found in database")

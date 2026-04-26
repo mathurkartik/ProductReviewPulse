@@ -13,7 +13,7 @@ class MCPSession:
     
     def __init__(self, url: str):
         self.base_url = url.rstrip("/")
-        self.client = httpx.Client(timeout=30.0)
+        self.client = httpx.Client(timeout=300.0)
 
     def connect(self):
         """Verify connectivity to the server."""

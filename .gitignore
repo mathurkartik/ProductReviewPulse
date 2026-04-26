@@ -1,5 +1,7 @@
 # Secrets — never commit
 .env
+mcp_server/credentials.json
+mcp_server/token.json
 
 # Runtime data (gitignored per architecture)
 data/raw/

@@ -197,11 +197,3 @@ Dry-run weekly workflow passes in CI using mocked MCP servers.
 On a staging Workspace, one full unattended run end-to-end in < 5 minutes; total LLM cost tracked in runs.metrics_json and under the per-run cap.
 Kill the MCP server mid-run → orchestrator retries; second run completes and is still idempotent.
 Evaluations: docs/phases/phase-7-orchestration/evaluations.md Edge cases: docs/phases/phase-7-orchestration/edge-cases.md
-
-Cross-Phase Concerns
-Traceability matrix: every problem-statement requirement in docs/problemStatement.md maps to exactly one phase's exit criteria (see architecture.md §12).
-Fixture lineage: Phase 1 produces tests/fixtures/reviews/golden.jsonl; Phase 2 produces clusters_golden.json; Phase 3 produces pulse_summary_golden.json; Phase 4 produces doc_requests_golden.json + email_golden.html. Each downstream phase's tests consume the upstream golden — breaking a contract fails loud.
-Security: Google credentials never enter the agent repo. They live inside the chosen MCP servers' secret stores (Phase 5 / 6).
-Definition of Done for every phase: unit tests + integration test against a mocked dependency + CLI demo + evaluations.md metrics met + all items in edge-cases.md have either a passing test or a documented acceptance.
-
-

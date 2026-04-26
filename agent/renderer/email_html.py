@@ -17,17 +17,19 @@ def render_emails(summary: PulseSummary, product_name: str, doc_link: str = "{DO
     html_template = env.get_template("email.html.j2")
     txt_template = env.get_template("email.txt.j2")
     
+    iso_week_str = f"{summary.window.end.year}-W{summary.window.end.isocalendar()[1]:02d}"
+    
     html_content = html_template.render(
         product_name=product_name,
-        iso_week=summary.iso_week,
-        themes=summary.themes,
+        iso_week=iso_week_str,
+        themes=summary.top_themes,
         doc_link=doc_link
     )
     
     txt_content = txt_template.render(
         product_name=product_name,
-        iso_week=summary.iso_week,
-        themes=summary.themes,
+        iso_week=iso_week_str,
+        themes=summary.top_themes,
         doc_link=doc_link
     )
     

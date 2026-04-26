@@ -84,10 +84,10 @@ def batch_embed_reviews(
                     conn.execute(
                         """
                         INSERT OR REPLACE INTO review_embeddings
-                            (review_id, run_id, embedding, model, cached)
-                        VALUES (?, ?, ?, ?, 0)
+                            (review_id, embedding)
+                        VALUES (?, ?)
                         """,
-                        (row["id"], run_id, blob, provider.model_name),
+                        (row["id"], blob),
                     )
                     embeddings[row["id"]] = vec
 

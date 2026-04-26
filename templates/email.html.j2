@@ -22,8 +22,8 @@
     
     {% for theme in themes %}
     <div class="theme-card">
-      <strong>{{ theme.name }}</strong> ({{ theme.review_count }} reviews)
-      <p>{{ theme.summary }}</p>
+      <strong>{{ theme.label }}</strong> ({{ theme.review_count }} reviews)
+      <p>{{ theme.description }}</p>
     </div>
     {% endfor %}
     

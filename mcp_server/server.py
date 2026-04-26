@@ -2,8 +2,7 @@ import logging
 import os
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from docs_tool import append_to_doc
-from gmail_tool import create_email_draft
+from gmail_tool import search_messages, create_draft, send_message
 
 # Re-create credentials.json from environment variable for Google libraries
 if os.environ.get("GOOGLE_CREDENTIALS_JSON"):
@@ -24,15 +23,31 @@ app = FastAPI(title="Google MCP Server")
 
 
 # ---------------- REQUEST SCHEMAS ---------------- #
-class AppendDocInput(BaseModel):
-    doc_id: str
-    content: str
+class CreateDocInput(BaseModel):
+    title: str
 
+class GetDocInput(BaseModel):
+    doc_id: str
+
+class BatchUpdateInput(BaseModel):
+    doc_id: str
+    requests: list
 
 class EmailInput(BaseModel):
-    to: str 
+    to: str
     subject: str
-    body: str
+    text: str
+    html: str | None = None
+    cc: str | None = ""
+    bcc: str | None = ""
+    headers: dict | None = None
+    label: str | None = None
+
+class SearchEmailInput(BaseModel):
+    query: str
+
+class SendMessageInput(BaseModel):
+    draft_id: str
 
 
 # ---------------- APPROVAL LAYER ---------------- #
@@ -73,74 +88,75 @@ def approve(action: str, payload: dict) -> bool:
 @app.get("/tools")
 def list_tools():
     return [
-        {
-            "name": "append_to_doc",
-            "description": "Append content to Google Doc"
-        },
-        {
-            "name": "create_email_draft",
-            "description": "Create Gmail draft"
-        }
+        {"name": "docs.create_document", "description": "Create a new Google Doc"},
+        {"name": "docs.get_document", "description": "Get a Google Doc's content"},
+        {"name": "docs.batch_update", "description": "Send a batchUpdate request to a Google Doc"},
+        {"name": "gmail.search_messages", "description": "Search Gmail messages"},
+        {"name": "gmail.create_draft", "description": "Create Gmail draft"},
+        {"name": "gmail.send_message", "description": "Send Gmail draft"}
     ]
 
 
-# ---------------- DOC TOOL ---------------- #
-@app.post("/append_to_doc")
-def run_append(data: AppendDocInput):
-    try:
-        logger.info("Received request for append_to_doc")
+# ---------------- DOCS TOOLS ---------------- #
+from docs_tool import create_document, get_document, batch_update
+from gmail_tool import search_messages, create_draft, send_message
 
-        if not approve("append_to_doc", data.dict()):
-            return {
-                "status": "rejected",
-                "message": "User rejected the action"
-            }
+@app.post("/docs.create_document")
+def run_create(data: CreateDocInput):
+    if not approve("docs.create_document", data.dict()): return {"status": "rejected"}
+    return create_document(title=data.title)
 
-        result = append_to_doc(
-            doc_id=data.doc_id,
-            content=data.content
-        )
+@app.post("/docs.get_document")
+def run_get(data: GetDocInput):
+    if not approve("docs.get_document", data.dict()): return {"status": "rejected"}
+    return get_document(doc_id=data.doc_id)
 
-        logger.info("append_to_doc executed successfully")
-
-        return result
-
-    except Exception as e:
-        logger.error(f"Error in append_to_doc: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=str(e)
-        )
+@app.post("/docs.batch_update")
+def run_batch_update(data: BatchUpdateInput):
+    if not approve("docs.batch_update", {"doc_id": data.doc_id, "requests_count": len(data.requests)}): return {"status": "rejected"}
+    return batch_update(doc_id=data.doc_id, requests=data.requests)
 
 
 # ---------------- EMAIL TOOL ---------------- #
-@app.post("/create_email_draft")
+@app.post("/gmail.search_messages")
+def run_search(data: SearchEmailInput):
+    if not approve("gmail.search_messages", data.dict()): return {"status": "rejected"}
+    return search_messages(query=data.query)
+
+@app.post("/gmail.create_draft")
 def run_email(data: EmailInput):
     try:
-        logger.info("Received request for create_email_draft")
-
-        if not approve("create_email_draft", data.dict()):
-            return {
-                "status": "rejected",
-                "message": "User rejected the action"
-            }
-
-        result = create_email_draft(
-            to=data.to,
-            subject=data.subject,
-            body=data.body
+        logger.info("Received request for gmail.create_draft")
+        if not approve("gmail.create_draft", data.dict()):
+            return {"status": "rejected", "message": "User rejected the action"}
+        result = create_draft(
+            to=data.to, 
+            subject=data.subject, 
+            text=data.text, 
+            html=data.html,
+            cc=data.cc,
+            bcc=data.bcc,
+            headers=data.headers,
+            label_name=data.label
         )
-
-        logger.info("create_email_draft executed successfully")
-
+        logger.info("gmail.create_draft executed successfully")
         return result
-
     except Exception as e:
-        logger.error(f"Error in create_email_draft: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=str(e)
-        )
+        logger.error(f"Error in gmail.create_draft: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/gmail.send_message")
+def run_send(data: SendMessageInput):
+    try:
+        logger.info("Received request for gmail.send_message")
+        if not approve("gmail.send_message", data.dict()):
+            return {"status": "rejected", "message": "User rejected the action"}
+        result = send_message(draft_id=data.draft_id)
+        logger.info("gmail.send_message executed successfully")
+        return result
+    except Exception as e:
+        logger.error(f"Error in gmail.send_message: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ---------------- HEALTH CHECK ---------------- #

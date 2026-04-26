@@ -1,10 +1,11 @@
 """Pydantic models for Phase 3 — LLM Summarization.
 
-Matches Architecture §3.3 and the `themes` table schema.
+Matches Architecture §3.3 and §4.2, and the `themes` table schema.
 """
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -18,15 +19,13 @@ from pydantic import BaseModel, Field
 class ThemeResponse(BaseModel):
     """Raw LLM output for label_theme()."""
 
-    name: str = Field(
+    label: str = Field(
         ..., description="Short, punchy name (e.g. 'KYC Friction', 'Withdrawal Speed')"
     )
-    summary: str = Field(
+    description: str = Field(
         ..., description="1-2 sentence summary of the cluster feedback"
     )
-    sentiment_weight: float = Field(
-        ..., ge=-1.0, le=1.0, description="-1.0 (very negative) to 1.0 (very positive)"
-    )
+    sentiment: Literal["negative", "mixed", "positive"]
 
 
 class QuoteCandidate(BaseModel):
@@ -49,10 +48,10 @@ class ActionIdeasResponse(BaseModel):
     action_ideas: list[ActionIdea]
 
 
-class WhoThisHelpsResponse(BaseModel):
-    """Raw LLM output for generate_who_this_helps()."""
+class WhatThisSolvesResponse(BaseModel):
+    """Raw LLM output for generate_what_this_solves()."""
 
-    who_this_helps: list[AudienceValue]
+    what_this_solves: list[AudienceValue]
 
 
 # ---------------------------------------------------------------------------
@@ -71,16 +70,13 @@ class Quote(BaseModel):
 class Theme(BaseModel):
     """A high-level theme derived from a cluster of reviews."""
 
-    name: str = Field(
-        ..., description="Short, punchy name for the theme (e.g. 'KYC Friction')"
-    )
-    summary: str = Field(
-        ..., description="1-2 sentence summary of the cluster feedback"
-    )
+    id: str
+    rank: int
+    label: str = Field(..., description="Short, punchy name for the theme (e.g. 'KYC Friction')")
+    description: str = Field(..., description="1-2 sentence summary of the cluster feedback")
+    sentiment: Literal["negative", "mixed", "positive"]
     review_count: int
-    sentiment_weight: float = Field(..., description="-1.0 to 1.0 weight")
-    quotes: list[Quote] = Field(default_factory=list)
-    cluster_id: str | None = None
+    representative_review_ids: list[str] = Field(default_factory=list)
 
 
 class ActionIdea(BaseModel):
@@ -99,15 +95,27 @@ class AudienceValue(BaseModel):
     )
 
 
+class Window(BaseModel):
+    start: date
+    end: date
+    weeks: int
+
+class PulseStats(BaseModel):
+    total_reviews: int
+    avg_rating: float
+    rating_delta_vs_prev: float | None = None
+
+
 class PulseSummary(BaseModel):
     """The final summarized report for a run."""
 
-    run_id: str
-    product_key: str
-    iso_week: str
-    themes: list[Theme] = Field(default_factory=list, max_length=3)
+    product: str
+    window: Window
+    stats: PulseStats
+    top_themes: list[Theme] = Field(default_factory=list)
+    quotes: list[Quote] = Field(default_factory=list)
     action_ideas: list[ActionIdea] = Field(default_factory=list)
-    who_this_helps: list[AudienceValue] = Field(default_factory=list)
+    what_this_solves: list[AudienceValue] = Field(default_factory=list)
     metrics: LLMMetrics | None = None
 
 
@@ -138,8 +146,5 @@ class PulseCostExceeded(Exception):
         )
 
 
-# Forward-reference fix: QuoteListResponse uses QuoteCandidate which is fine,
-# but ActionIdeasResponse and WhoThisHelpsResponse reference ActionIdea and
-# AudienceValue which are defined later. Rebuild them.
 ActionIdeasResponse.model_rebuild()
-WhoThisHelpsResponse.model_rebuild()
+WhatThisSolvesResponse.model_rebuild()

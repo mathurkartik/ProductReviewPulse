@@ -7,22 +7,28 @@ from typing import Any
 from agent.summarization_models import PulseSummary
 
 
-def generate_doc_requests(summary: PulseSummary, product_display_name: str) -> list[dict[str, Any]]:
+def generate_doc_requests(summary: PulseSummary, product_display_name: str, start_index: int = 1) -> list[dict[str, Any]]:
     """Generate a list of Google Docs batchUpdate requests for the summary.
     
-    We generate requests assuming insertion at the top of the doc (index 1).
-    Because we insert at index 1 repeatedly, we should insert the LAST element first
-    so that when we insert the first element at index 1, it pushes everything else down.
-    Alternatively, we can compute running lengths and insert sequentially.
-    To match the MVP simplicity mentioned in the architecture, we will compute 
-    sequential indices starting from 1.
+    Appends elements starting from `start_index`.
     """
     requests = []
-    current_idx = 1
+    current_idx = start_index
+    
+    # Optional: Insert a page break before the new section if not at the very top
+    if current_idx > 1:
+        requests.append({
+            "insertPageBreak": {
+                "location": {"index": current_idx}
+            }
+        })
+        current_idx += 1  # Page breaks consume 1 index
+
+    iso_week_str = f"{summary.window.end.year}-W{summary.window.end.isocalendar()[1]:02d}"
     
     # Heading 1: Title with anchor
-    anchor = f"[pulse-{summary.product_key}-{summary.iso_week}]"
-    title_text = f"{product_display_name} — Weekly Review Pulse  |  {summary.iso_week}  {anchor}\n"
+    anchor = f"[pulse-{summary.product}-{iso_week_str}]"
+    title_text = f"{product_display_name} — Weekly Review Pulse  |  {iso_week_str}  {anchor}\n"
     
     requests.append({
         "insertText": {
@@ -56,9 +62,9 @@ def generate_doc_requests(summary: PulseSummary, product_display_name: str) -> l
     })
     current_idx += len(themes_header)
 
-    for i, theme in enumerate(summary.themes, 1):
+    for i, theme in enumerate(summary.top_themes, 1):
         # Paragraph (Normal): "{n}. {theme_name} — {theme_summary}"
-        theme_text = f"{i}. {theme.name} — {theme.summary}\n"
+        theme_text = f"{i}. {theme.label} — {theme.description}\n"
         requests.append({
             "insertText": {
                 "location": {"index": current_idx},
@@ -91,31 +97,30 @@ def generate_doc_requests(summary: PulseSummary, product_display_name: str) -> l
     })
     current_idx += len(quotes_header)
 
-    for theme in summary.themes:
-        for quote in theme.quotes:
-            # Paragraph (Italic): '"{quote_text}"'
-            quote_text = f'"{quote.text}" ({quote.source}, {quote.rating}*)\n'
-            requests.append({
-                "insertText": {
-                    "location": {"index": current_idx},
-                    "text": quote_text
-                }
-            })
-            requests.append({
-                "updateParagraphStyle": {
-                    "range": {"startIndex": current_idx, "endIndex": current_idx + len(quote_text)},
-                    "paragraphStyle": {"namedStyleType": "NORMAL_TEXT"},
-                    "fields": "namedStyleType"
-                }
-            })
-            requests.append({
-                "updateTextStyle": {
-                    "range": {"startIndex": current_idx, "endIndex": current_idx + len(quote_text)},
-                    "textStyle": {"italic": True},
-                    "fields": "italic"
-                }
-            })
-            current_idx += len(quote_text)
+    for quote in summary.quotes:
+        # Paragraph (Italic): '"{quote_text}"'
+        quote_text = f'"{quote.text}" ({quote.source}, {quote.rating}★)\n'
+        requests.append({
+            "insertText": {
+                "location": {"index": current_idx},
+                "text": quote_text
+            }
+        })
+        requests.append({
+            "updateParagraphStyle": {
+                "range": {"startIndex": current_idx, "endIndex": current_idx + len(quote_text)},
+                "paragraphStyle": {"namedStyleType": "NORMAL_TEXT"},
+                "fields": "namedStyleType"
+            }
+        })
+        requests.append({
+            "updateTextStyle": {
+                "range": {"startIndex": current_idx, "endIndex": current_idx + len(quote_text)},
+                "textStyle": {"italic": True},
+                "fields": "italic"
+            }
+        })
+        current_idx += len(quote_text)
 
     # Heading 2: Action Ideas
     action_header = "Action Ideas\n"
@@ -150,10 +155,11 @@ def generate_doc_requests(summary: PulseSummary, product_display_name: str) -> l
                 "fields": "namedStyleType"
             }
         })
+        # Note: could use createParagraphBullets, but bullet char is fine for MVP
         current_idx += len(action_text)
 
-    # Heading 2: Who This Helps
-    who_header = "Who This Helps\n"
+    # Heading 2: What This Solves
+    who_header = "What This Solves\n"
     requests.append({
         "insertText": {
             "location": {"index": current_idx},
@@ -169,63 +175,48 @@ def generate_doc_requests(summary: PulseSummary, product_display_name: str) -> l
     })
     current_idx += len(who_header)
 
-    # Table (2 col): Audience | Value (3 data rows + 1 header row = 4 rows)
+    # Insert Table (2 columns: Audience, Value)
+    rows_data = [("Audience", "Value")]
+    for w in summary.what_this_solves:
+        rows_data.append((w.audience, w.value))
+
     requests.append({
         "insertTable": {
-            "location": {"index": current_idx},
-            "rows": 4,
-            "columns": 2
+            "rows": len(rows_data),
+            "columns": 2,
+            "location": {"index": current_idx}
         }
     })
     
-    # In Google Docs, inserting a table at index I creates cells that take up indices.
-    # A 4x2 table has 8 cells. Each cell contains an empty paragraph.
-    # The structure: 
-    # Table start: +1 index
-    # For each cell: cell start (+1), paragraph inside (+1), cell end (+1) -- wait, Google Docs indices are tricky.
-    # Usually, a table structure is:
-    # Index: current_idx -> Table start
-    # current_idx+1 -> Row 1 start
-    # current_idx+2 -> Cell 1,1 start
-    # current_idx+3 -> Paragraph start
-    # To keep this MVP simple and robust, and since the specific table insertion index math is hard without reading the doc state,
-    # we can just use `insertText` inside table cells using table cell locations, but the batchUpdate schema for that requires `location` to be the actual index.
-    # A simpler approach to avoid index math is to just use text for the table if we don't have the table cell indices, OR we can format it as plain text.
-    # However, the requirement says "Table (2 col)". 
-    # To properly insert text into the table in a single batch, we can compute the indices:
-    # A Table element adds 1 to the index. Each row adds 1. Each cell adds 1. Each paragraph in a cell adds 1.
-    # Let's approximate a text-based table if index math is too complex, or try the math:
-    # Actually, the simplest way is to not use Google Docs table if we can't do index math, but let's try.
-    # Let's use simple text for "Who This Helps" instead to avoid batch update index corruption, or just use a bulleted list.
-    # Wait! The requirement says: `Table (2 col):  Audience | Value  (3 data rows: Product, Support, Leadership)`
-    # Since we must insert a table, here is the index math for a newly inserted Table at `idx`:
-    # idx: TableStart
-    # idx+1: Row 1 Start
-    # idx+2: Cell 1 Start
-    # idx+3: empty paragraph (can insert text at idx+3)
-    # text length L inserted at idx+3.
-    # next cell start: idx+3+L+1 (the +1 is for the end of the previous cell's paragraph/cell boundary)
-    # Let's do it carefully:
+    # Mathematical index tracking for Docs API table cells
+    pointer = current_idx + 3
     
-    table_idx = current_idx + 1 # inside the table
-    # We will build a list of cell contents
-    cell_contents = ["Audience", "Value"]
-    for w in summary.who_this_helps:
-        cell_contents.extend([w.audience, w.value])
+    for r_idx, (col1, col2) in enumerate(rows_data):
+        # Cell 1
+        requests.append({"insertText": {"location": {"index": pointer}, "text": col1}})
+        if r_idx == 0:
+            requests.append({"updateTextStyle": {"range": {"startIndex": pointer, "endIndex": pointer + len(col1)}, "textStyle": {"bold": True}, "fields": "bold"}})
+        pointer += len(col1) + 3
         
-    for text in cell_contents:
-        cell_text_idx = table_idx + 2 # skip row start, cell start to get to paragraph
-        requests.append({
-            "insertText": {
-                "location": {"index": cell_text_idx},
-                "text": text
-            }
-        })
-        # Advance table_idx by the size of the cell: 
-        # cell start (1) + text length + paragraph end (1) + cell end (1) 
-        # Wait, if we just insert at cell_text_idx, it shifts the rest of the table down.
-        # But `batchUpdate` processes requests sequentially and updates indices.
-        # It's easier to insert at `cell_text_idx` and then update `table_idx` by `len(text)`.
-        table_idx += len(text) + 2 # +2 for cell/row boundaries (approximate)
+        # Cell 2
+        requests.append({"insertText": {"location": {"index": pointer}, "text": col2}})
+        if r_idx == 0:
+            requests.append({"updateTextStyle": {"range": {"startIndex": pointer, "endIndex": pointer + len(col2)}, "textStyle": {"bold": True}, "fields": "bold"}})
+        
+        # Move to next row or end of table
+        if r_idx < len(rows_data) - 1:
+            pointer += len(col2) + 5
+        else:
+            pointer += len(col2) + 3
+
+    current_idx = pointer
+    
+    # Horizontal rule at the end
+    requests.append({
+        "insertSectionBreak": {
+            "sectionType": "NEXT_PAGE",
+            "location": {"index": current_idx}
+        }
+    })
 
     return requests

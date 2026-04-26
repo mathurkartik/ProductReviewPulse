@@ -1,12 +1,12 @@
-Subject: [Weekly Pulse] {{ product_name }} — {{ iso_week }} — {{ themes[0].name if themes else 'No Themes' }}
+Subject: [Weekly Pulse] {{ product_name }} — {{ iso_week }} — {{ themes[0].label if themes else 'No Themes' }}
 
 Hi Team,
 
 Here are the top themes discovered from this week's reviews:
 
 {% for theme in themes %}
-* {{ theme.name }} ({{ theme.review_count }} reviews)
-  {{ theme.summary }}
+* {{ theme.label }} ({{ theme.review_count }} reviews)
+  {{ theme.description }}
 {% endfor %}
 
 Read full report → {{ doc_link }}

@@ -51,10 +51,13 @@ def fetch_playstore_reviews(product_key: str, play_store_id: str, since: datetim
                 product_key=product_key,
                 source="playstore",
                 external_id=external_id,
-                body=body_scrubbed,
                 rating=review.get('score', 0),
-                review_date=review_date,
-                language="en"
+                title=None, # Play store reviews don't have titles
+                body=body_scrubbed,
+                posted_at=review_date,
+                version=review.get('reviewCreatedVersion'),
+                language="en",
+                country="in"
             )
             
         if older_found or not continuation_token:

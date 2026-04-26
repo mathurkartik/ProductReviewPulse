@@ -26,8 +26,8 @@ class Recipients(BaseModel):
 class ProductConfig(BaseModel):
     key: str
     display_name: str
-    app_store_id: str | None = None
-    play_store_id: str | None = None
+    appstore_id: str | None = None
+    play_package: str | None = None
     recipients: Recipients = Field(default_factory=Recipients)
 
 

@@ -53,8 +53,10 @@ def fetch_appstore_reviews(product_key: str, app_store_id: str, since: datetime)
                         rev_id = hashlib.sha1(f"appstore{external_id}".encode()).hexdigest()
                         yield RawReview(
                             id=rev_id, product_key=product_key, source="appstore",
-                            external_id=external_id, body=body_scrubbed, rating=rating,
-                            review_date=review_date, language="en"
+                            external_id=external_id, rating=rating,
+                            title=entry.get("title", {}).get("label"), body=body_scrubbed,
+                            posted_at=review_date, version=entry.get("im:version", {}).get("label"),
+                            language="en", country="in"
                         )
                 else:
                     break
@@ -105,18 +107,18 @@ def fetch_appstore_reviews(product_key: str, app_store_id: str, since: datetime)
                                         review_date = review_date.replace(tzinfo=since.tzinfo)
                                     if review_date < since: continue
                                     
-                                    full_body = f"{title}\n{body}" if title else body
-                                    
-                                    if not is_valid_review(full_body, language="en"):
+                                    if not is_valid_review(body, language="en"):
                                         continue
                                         
-                                    body_scrubbed = scrub_pii(full_body)
+                                    body_scrubbed = scrub_pii(body)
                                     rev_id = hashlib.sha1(f"appstore{ext_id}".encode()).hexdigest()
                                     count += 1
                                     yield RawReview(
                                         id=rev_id, product_key=product_key, source="appstore",
-                                        external_id=str(ext_id), body=body_scrubbed, rating=int(rating) if rating else None,
-                                        review_date=review_date, language="en"
+                                        external_id=str(ext_id), rating=int(rating) if rating else None,
+                                        title=title, body=body_scrubbed,
+                                        posted_at=review_date, version=None,
+                                        language="en", country="in"
                                     )
                                 log.info("ingest.appstore.fallback.extracted", count=count)
                         except Exception as e:

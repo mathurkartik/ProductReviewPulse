@@ -13,91 +13,57 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# ---------------- MAIN FUNCTION ---------------- #
-def append_to_doc(doc_id: str, content: str):
-    """
-    Appends timestamped content to a Google Doc.
+# ---------------- MAIN FUNCTIONS ---------------- #
 
-    Args:
-        doc_id (str): Google Doc ID
-        content (str): Text to append
-
-    Returns:
-        dict: status + message
-    """
-
+def create_document(title: str):
     try:
-        logger.info(f"Starting append_to_doc for doc_id={doc_id}")
-
-        # -------- INPUT VALIDATION -------- #
-        if not doc_id or not content:
-            logger.error("Missing doc_id or content")
-            return {
-                "status": "error",
-                "message": "doc_id and content are required"
-            }
-
-        # -------- AUTH -------- #
+        logger.info(f"Starting create_document for title={title}")
         creds = get_creds()
-        logger.info("Credentials loaded")
-
-        # -------- INIT SERVICE -------- #
         service = build("docs", "v1", credentials=creds)
-        logger.info("Google Docs service initialized")
-
-        # -------- FORMAT CONTENT -------- #
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        formatted_content = f"\n[{timestamp}]\n{content}\n"
-
-        # -------- PREPARE REQUEST -------- #
-        requests = [
-            {
-                "insertText": {
-                    "endOfSegmentLocation": {},
-                    "text": formatted_content
-                }
-            }
-        ]
-
-        # -------- EXECUTE API CALL -------- #
-        try:
-            service.documents().batchUpdate(
-                documentId=doc_id,
-                body={"requests": requests}
-            ).execute()
-
-            logger.info("Content appended successfully")
-
-            return {
-                "status": "success",
-                "message": "Content appended to document",
-                "document_id": doc_id
-            }
-
-        except HttpError as e:
-            logger.error(f"Google Docs API error: {e}")
-
-            return {
-                "status": "error",
-                "message": "Google Docs API error",
-                "details": str(e)
-            }
-
-        except Exception as e:
-            logger.error(f"Execution error: {e}")
-
-            return {
-                "status": "error",
-                "message": "Failed during API execution",
-                "details": str(e)
-            }
-
-    # -------- FALLBACK ERROR -------- #
-    except Exception as e:
-        logger.error(f"Unexpected error: {e}")
-
+        
+        doc = service.documents().create(body={"title": title}).execute()
+        
         return {
-            "status": "error",
-            "message": "Unexpected error occurred",
-            "details": str(e)
+            "status": "success",
+            "document_id": doc.get("documentId")
         }
+    except Exception as e:
+        logger.error(f"create_document error: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+def get_document(doc_id: str):
+    try:
+        logger.info(f"Starting get_document for doc_id={doc_id}")
+        creds = get_creds()
+        service = build("docs", "v1", credentials=creds)
+        
+        doc = service.documents().get(documentId=doc_id).execute()
+        
+        return {
+            "status": "success",
+            "document": doc
+        }
+    except Exception as e:
+        logger.error(f"get_document error: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+def batch_update(doc_id: str, requests: list):
+    try:
+        logger.info(f"Starting batch_update for doc_id={doc_id}")
+        creds = get_creds()
+        service = build("docs", "v1", credentials=creds)
+        
+        result = service.documents().batchUpdate(
+            documentId=doc_id,
+            body={"requests": requests}
+        ).execute()
+        
+        return {
+            "status": "success",
+            "replies": result.get("replies", [])
+        }
+    except Exception as e:
+        logger.error(f"batch_update error: {e}")
+        return {"status": "error", "message": str(e)}

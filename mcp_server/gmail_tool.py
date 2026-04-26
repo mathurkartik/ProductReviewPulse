@@ -1,125 +1,110 @@
 import logging
-import base64
-from email.mime.text import MIMEText
-from datetime import datetime
 from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
 from auth import get_creds
-
-# ---------------- LOGGING SETUP ---------------- #
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
-)
 
 logger = logging.getLogger(__name__)
 
-
-# ---------------- MESSAGE BUILDER ---------------- #
-def create_message(to: str, subject: str, body: str):
-    """
-    Creates a base64 encoded email message.
-    """
-
+def search_messages(query: str):
+    """Search for Gmail messages using a query (e.g. 'X-Pulse-Run-Id:123')."""
     try:
-        message = MIMEText(body)
-        message["to"] = to
-        message["subject"] = subject
-
-        raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
-
-        return {"raw": raw}
-
-    except Exception as e:
-        logger.error(f"Error creating message: {e}")
-        raise
-
-
-# ---------------- MAIN FUNCTION ---------------- #
-def create_email_draft(to: str, subject: str, body: str):
-    """
-    Creates a Gmail draft.
-
-    Args:
-        to (str): Recipient email
-        subject (str): Email subject
-        body (str): Email body
-
-    Returns:
-        dict: status + message
-    """
-
-    try:
-        logger.info("Starting create_email_draft")
-
-        # -------- INPUT VALIDATION -------- #
-        if not to or not subject or not body:
-            logger.error("Missing required email fields")
-
-            return {
-                "status": "error",
-                "message": "to, subject, and body are required"
-            }
-
-        # -------- FORMAT BODY -------- #
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        formatted_body = f"""
-[{timestamp}]
-
-{body}
-"""
-
-        # -------- AUTH -------- #
+        logger.info(f"Searching messages with query: {query}")
         creds = get_creds()
-        logger.info("Credentials loaded")
-
-        # -------- INIT SERVICE -------- #
         service = build("gmail", "v1", credentials=creds)
-        logger.info("Gmail service initialized")
-
-        # -------- CREATE MESSAGE -------- #
-        message = create_message(to, subject, formatted_body)
-
-        # -------- EXECUTE API CALL -------- #
-        try:
-            draft = service.users().drafts().create(
-                userId="me",
-                body={"message": message}
-            ).execute()
-
-            logger.info("Email draft created successfully")
-
-            return {
-                "status": "success",
-                "message": "Draft created",
-                "draft_id": draft.get("id")
-            }
-
-        except HttpError as e:
-            logger.error(f"Gmail API error: {e}")
-
-            return {
-                "status": "error",
-                "message": "Gmail API error",
-                "details": str(e)
-            }
-
-        except Exception as e:
-            logger.error(f"Execution error: {e}")
-
-            return {
-                "status": "error",
-                "message": "Failed during draft creation",
-                "details": str(e)
-            }
-
-    # -------- FALLBACK ERROR -------- #
-    except Exception as e:
-        logger.error(f"Unexpected error: {e}")
-
+        
+        results = service.users().messages().list(userId="me", q=query).execute()
+        messages = results.get("messages", [])
+        
         return {
-            "status": "error",
-            "message": "Unexpected error occurred",
-            "details": str(e)
+            "status": "success",
+            "messages": messages
         }
+    except Exception as e:
+        logger.error(f"search_messages error: {e}")
+        return {"status": "error", "message": str(e)}
+
+import base64
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+def create_message(to: str, subject: str, text: str, html: str = None, cc: str = "", bcc: str = "", headers: dict = None):
+    """Create a base64url encoded email message."""
+    if html:
+        message = MIMEMultipart("alternative")
+        message.attach(MIMEText(text, "plain", "utf-8"))
+        message.attach(MIMEText(html, "html", "utf-8"))
+    else:
+        message = MIMEText(text, "plain", "utf-8")
+        
+    message["to"] = to
+    message["subject"] = subject
+    if cc: message["cc"] = cc
+    if bcc: message["bcc"] = bcc
+    
+    if headers:
+        for k, v in headers.items():
+            # Avoid overwriting standard headers if they are passed in headers dict
+            if k.lower() not in ["to", "subject", "cc", "bcc"]:
+                message[k] = v
+            
+    raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
+    return raw
+
+def get_or_create_label(service, label_name: str) -> str:
+    \"\"\"Find a label by name, or create it if it doesn't exist.\"\"\"
+    results = service.users().labels().list(userId='me').execute()
+    labels = results.get('labels', [])
+    for lbl in labels:
+        if lbl['name'] == label_name:
+            return lbl['id']
+            
+    # Create it
+    label_object = {
+        'messageListVisibility': 'show',
+        'name': label_name,
+        'labelListVisibility': 'labelShow'
+    }
+    created = service.users().labels().create(userId='me', body=label_object).execute()
+    return created['id']
+
+def create_draft(to: str, subject: str, text: str, html: str = None, cc: str = "", bcc: str = "", headers: dict = None, label_name: str = None):
+    \"\"\"Create a Gmail draft.\"\"\"
+    try:
+        logger.info(f"Creating Gmail draft for {to}")
+        creds = get_creds()
+        service = build("gmail", "v1", credentials=creds)
+        
+        raw_message = create_message(to, subject, text, html, cc, bcc, headers)
+        
+        body_obj = {"message": {"raw": raw_message}}
+        
+        if label_name:
+            lbl_id = get_or_create_label(service, label_name)
+            body_obj["message"]["labelIds"] = [lbl_id]
+            
+        draft = service.users().drafts().create(userId="me", body=body_obj).execute()
+        
+        return {
+            "status": "success",
+            "draft_id": draft.get("id")
+        }
+    except Exception as e:
+        logger.error(f"create_draft error: {e}")
+        return {"status": "error", "message": str(e)}
+
+def send_message(draft_id: str):
+    """Send an existing Gmail draft."""
+    try:
+        logger.info(f"Sending draft {draft_id}")
+        creds = get_creds()
+        service = build("gmail", "v1", credentials=creds)
+        
+        body = {"id": draft_id}
+        result = service.users().drafts().send(userId="me", body=body).execute()
+        
+        return {
+            "status": "success",
+            "message_id": result.get("id")
+        }
+    except Exception as e:
+        logger.error(f"send_message error: {e}")
+        return {"status": "error", "message": str(e)}

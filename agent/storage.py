@@ -54,67 +54,63 @@ PRAGMA journal_mode=WAL;
 PRAGMA foreign_keys=ON;
 
 CREATE TABLE IF NOT EXISTS products (
-    product_key   TEXT PRIMARY KEY,
-    display_name  TEXT NOT NULL,
-    app_store_id  TEXT,
-    play_store_id TEXT,
-    gdoc_id       TEXT,
-    created_at    TEXT NOT NULL
+    key          TEXT PRIMARY KEY,
+    display      TEXT NOT NULL,
+    appstore_id  TEXT,
+    play_package TEXT,
+    gdoc_id      TEXT,
+    gmail_to     TEXT
 );
 
 CREATE TABLE IF NOT EXISTS reviews (
     id          TEXT PRIMARY KEY,
-    product_key TEXT REFERENCES products(product_key),
+    product_key TEXT REFERENCES products(key),
     source      TEXT NOT NULL CHECK(source IN ('appstore', 'playstore')),
     external_id TEXT NOT NULL,
     body        TEXT NOT NULL,
     rating      INTEGER,
-    review_date TEXT NOT NULL,
+    title       TEXT,
+    posted_at   DATETIME NOT NULL,
+    version     TEXT,
     language    TEXT,
-    created_at  TEXT NOT NULL
+    country     TEXT,
+    ingested_at DATETIME NOT NULL,
+    raw_json    TEXT
 );
 
 CREATE TABLE IF NOT EXISTS review_embeddings (
     review_id TEXT PRIMARY KEY REFERENCES reviews(id),
-    run_id    TEXT NOT NULL,
-    embedding BLOB NOT NULL,
-    model     TEXT NOT NULL,
-    cached    INTEGER NOT NULL DEFAULT 0 CHECK(cached IN (0, 1))
+    embedding BLOB NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS runs (
-    run_id           TEXT PRIMARY KEY,
-    product_key      TEXT REFERENCES products(product_key),
+    id               TEXT PRIMARY KEY,
+    product_key      TEXT REFERENCES products(key),
     iso_week         TEXT NOT NULL,
-    window_weeks     INTEGER NOT NULL,
-    status           TEXT NOT NULL DEFAULT 'pending'
-                     CHECK(status IN (
-                         'pending','ingested','clustered',
-                         'summarized','rendered','published','failed'
-                     )),
-    gdoc_id          TEXT,
+    window_start     DATE NOT NULL,
+    window_end       DATE NOT NULL,
+    status           TEXT NOT NULL DEFAULT 'pending',
+    metrics_json     TEXT,
     gdoc_heading_id  TEXT,
     gmail_message_id TEXT,
-    metrics_json     TEXT,
     created_at       TEXT NOT NULL,
     updated_at       TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS themes (
-    id               INTEGER PRIMARY KEY AUTOINCREMENT,
-    run_id           TEXT REFERENCES runs(run_id),
-    cluster_id       TEXT NOT NULL,
-    name             TEXT NOT NULL,
-    summary          TEXT NOT NULL,
-    review_count     INTEGER NOT NULL,
-    sentiment_weight REAL NOT NULL,
-    rank             INTEGER NOT NULL,
-    quotes_json      TEXT NOT NULL DEFAULT '[]'
+    id                             TEXT PRIMARY KEY,
+    run_id                         TEXT REFERENCES runs(id),
+    rank                           INTEGER NOT NULL,
+    label                          TEXT NOT NULL,
+    description                    TEXT NOT NULL,
+    sentiment                      TEXT NOT NULL,
+    review_count                   INTEGER NOT NULL,
+    representative_review_ids_json TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS clusters (
     id               TEXT PRIMARY KEY,
-    run_id           TEXT REFERENCES runs(run_id),
+    run_id           TEXT REFERENCES runs(id),
     review_ids_json  TEXT NOT NULL,
     keyphrases_json  TEXT NOT NULL,
     medoid_review_id TEXT REFERENCES reviews(id)
@@ -164,27 +160,45 @@ _now_utc = lambda: datetime.now(UTC).isoformat()  # noqa: E731
 def upsert_product(
     db_path: Path,
     *,
-    product_key: str,
-    display_name: str,
-    app_store_id: str | None = None,
-    play_store_id: str | None = None,
+    key: str,
+    display: str,
+    appstore_id: str | None = None,
+    play_package: str | None = None,
+    gmail_to: str | None = None,
 ) -> None:
     """Insert or update product metadata."""
-    now = _now_utc()
     with contextlib.closing(get_connection(db_path)) as conn:
         with conn:
             conn.execute(
                 """
-                INSERT INTO products (product_key, display_name, app_store_id, play_store_id, created_at)
+                INSERT INTO products (key, display, appstore_id, play_package, gmail_to)
                 VALUES (?, ?, ?, ?, ?)
-                ON CONFLICT(product_key) DO UPDATE SET
-                    display_name=excluded.display_name,
-                    app_store_id=excluded.app_store_id,
-                    play_store_id=excluded.play_store_id
+                ON CONFLICT(key) DO UPDATE SET
+                    display=excluded.display,
+                    appstore_id=excluded.appstore_id,
+                    play_package=excluded.play_package,
+                    gmail_to=excluded.gmail_to
                 """,
-                (product_key, display_name, app_store_id, play_store_id, now),
+                (key, display, appstore_id, play_package, gmail_to),
             )
 
+def get_product_gdoc_id(db_path: Path, product_key: str) -> str | None:
+    """Return the Google Doc ID for the product, or None if not set."""
+    with contextlib.closing(get_connection(db_path)) as conn:
+        row = conn.execute(
+            "SELECT gdoc_id FROM products WHERE key=?", (product_key,)
+        ).fetchone()
+    return row["gdoc_id"] if row else None
+
+
+def set_product_gdoc_id(db_path: Path, product_key: str, gdoc_id: str) -> None:
+    """Update the Google Doc ID for the product."""
+    with contextlib.closing(get_connection(db_path)) as conn:
+        with conn:
+            conn.execute(
+                "UPDATE products SET gdoc_id=? WHERE key=?",
+                (gdoc_id, product_key),
+            )
 
 def upsert_run(
     db_path: Path,
@@ -192,7 +206,8 @@ def upsert_run(
     run_id: str,
     product_key: str,
     iso_week: str,
-    window_weeks: int,
+    window_start: str,
+    window_end: str,
 ) -> None:
     """Insert a new run record (no-op if already exists)."""
     now = _now_utc()
@@ -201,10 +216,10 @@ def upsert_run(
             conn.execute(
                 """
                 INSERT OR IGNORE INTO runs
-                    (run_id, product_key, iso_week, window_weeks, status, created_at, updated_at)
-                VALUES (?, ?, ?, ?, 'pending', ?, ?)
+                    (id, product_key, iso_week, window_start, window_end, status, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, 'pending', ?, ?)
                 """,
-                (run_id, product_key, iso_week, window_weeks, now, now),
+                (run_id, product_key, iso_week, window_start, window_end, now, now),
             )
 
 
@@ -213,7 +228,7 @@ def set_run_status(db_path: Path, run_id: str, status: str) -> None:
     with contextlib.closing(get_connection(db_path)) as conn:
         with conn:
             conn.execute(
-                "UPDATE runs SET status=?, updated_at=? WHERE run_id=?",
+                "UPDATE runs SET status=?, updated_at=? WHERE id=?",
                 (status, _now_utc(), run_id),
             )
 
@@ -222,6 +237,18 @@ def get_run_status(db_path: Path, run_id: str) -> str | None:
     """Return current status string, or None if run doesn't exist."""
     with contextlib.closing(get_connection(db_path)) as conn:
         row = conn.execute(
-            "SELECT status FROM runs WHERE run_id=?", (run_id,)
+            "SELECT status FROM runs WHERE id=?", (run_id,)
         ).fetchone()
     return row["status"] if row else None
+
+
+def set_run_gmail_id(db_path: Path, run_id: str, message_id: str) -> None:
+    """Update the Gmail message/draft ID for the run."""
+    import contextlib
+    with contextlib.closing(get_connection(db_path)) as conn:
+        with conn:
+            conn.execute(
+                "UPDATE runs SET gmail_message_id=?, updated_at=? WHERE id=?",
+                (message_id, _now_utc(), run_id),
+            )
+
