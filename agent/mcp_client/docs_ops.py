@@ -29,9 +29,11 @@ def resolve_document(
     log.info("docs.resolve.create", title=doc_title)
     resp = session.call_tool("docs.create_document", {"title": doc_title})
     doc_id = resp.get("document_id")
-    log.info("docs.resolve.created", doc_id=doc_id)
-
+    
     # Save to database for next time
+    if not doc_id or not isinstance(doc_id, str):
+        raise RuntimeError("Failed to create document: no valid document_id returned")
+        
     set_product_gdoc_id(db_path, product_key, doc_id)
 
     return doc_id
