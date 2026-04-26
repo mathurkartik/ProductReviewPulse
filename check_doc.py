@@ -1,6 +1,6 @@
 import sqlite3
 
-conn = sqlite3.connect("data/pulse.db")
+conn = sqlite3.connect("pulse.sqlite")
 conn.row_factory = sqlite3.Row
 
 # Check product gdoc_id

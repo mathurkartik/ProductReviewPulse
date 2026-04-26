@@ -312,7 +312,8 @@ def render(
     doc_requests = generate_doc_requests(summary, product_config.display_name)
 
     # 2. Render Email HTML and Plain Text
-    dashboard_link = f"{settings.env.m2_frontend_url.rstrip('/')}/pulse/{run}"
+    # Frontend always shows latest run via /api/pulse/latest, so just link to base URL
+    dashboard_link = settings.env.m2_frontend_url.rstrip('/')
     email_html, email_txt = render_emails(summary, product_config.display_name, dashboard_link=dashboard_link)
 
     # 3. Save artifacts

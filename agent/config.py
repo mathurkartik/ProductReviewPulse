@@ -60,7 +60,7 @@ class EnvSettings(BaseSettings):
     m2_frontend_url: str = "http://localhost:3000"
     confirm_send: bool = False
     pulse_env: str = "development"
-    db_path: Path = ROOT / "data" / "pulse.db"
+    db_path: Path = ROOT / "pulse.sqlite"
 
 
 # ---------------------------------------------------------------------------

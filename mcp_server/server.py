@@ -229,7 +229,7 @@ def get_latest_pulse_data():
         cursor = conn.cursor()
         
         latest_run = cursor.execute(
-            "SELECT id FROM runs WHERE status = 'summarized' ORDER BY updated_at DESC LIMIT 1"
+            "SELECT id FROM runs WHERE status IN ('summarized', 'published') ORDER BY updated_at DESC LIMIT 1"
         ).fetchone()
         
         if not latest_run:
