@@ -2,21 +2,21 @@
 
 from __future__ import annotations
 
-import structlog
-import os
 from pathlib import Path
-from typing import List
-from agent.mcp_client.session import MCPSession
+
+import structlog
+
 from agent import storage
+from agent.mcp_client.session import MCPSession
 
 log = structlog.get_logger()
 
 def send_pulse_email(
     session: MCPSession,
     run_id: str,
-    to: List[str],
-    cc: List[str],
-    bcc: List[str],
+    to: list[str],
+    cc: list[str],
+    bcc: list[str],
     subject: str,
     html: str,
     text: str,

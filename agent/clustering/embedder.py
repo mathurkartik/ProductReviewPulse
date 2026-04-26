@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 import structlog
 
-from agent.embeddings import EmbeddingProvider, text_cache_key
+from agent.embeddings import EmbeddingProvider
 
 log = structlog.get_logger()
 
@@ -79,7 +79,7 @@ def batch_embed_reviews(
         # 3. Persist to cache
         with contextlib.closing(sqlite3.connect(db_path)) as conn:
             with conn:
-                for row, vec in zip(to_embed, vectors):
+                for row, vec in zip(to_embed, vectors, strict=True):
                     blob = _vector_to_blob(vec)
                     conn.execute(
                         """

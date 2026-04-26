@@ -1,16 +1,16 @@
 import hashlib
 import re
 from collections.abc import Generator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 import structlog
 
-log = structlog.get_logger()
-
 from agent.ingestion.filters import is_valid_review
 from agent.ingestion.models import RawReview
 from agent.ingestion.pii import scrub_pii
+
+log = structlog.get_logger()
 
 
 def fetch_appstore_reviews(product_key: str, app_store_id: str, since: datetime) -> Generator[RawReview, None, None]:
@@ -31,18 +31,20 @@ def fetch_appstore_reviews(product_key: str, app_store_id: str, since: datetime)
                 if entries:
                     found_any = True
                     for entry in entries:
-                        if "author" not in entry: continue
+                        if "author" not in entry:
+                            continue
                         external_id = entry.get("id", {}).get("label", "")
                         body_text = entry.get("content", {}).get("label", "")
                         date_str = entry.get("updated", {}).get("label", "")
                         try:
                             review_date = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
-                        except:
-                            review_date = datetime.now(timezone.utc)
+                        except ValueError:
+                            review_date = datetime.now(UTC)
                         
                         if review_date.tzinfo is None:
                             review_date = review_date.replace(tzinfo=since.tzinfo)
-                        if review_date < since: return
+                        if review_date < since:
+                            return
                         
                         rating = int(entry.get("im:rating", {}).get("label", "0"))
                         
@@ -60,13 +62,14 @@ def fetch_appstore_reviews(product_key: str, app_store_id: str, since: datetime)
                         )
                 else:
                     break
-        except:
+        except Exception:
             break
 
     # 2. Fallback: Scrape HTML if RSS was empty
     if not found_any:
-        from bs4 import BeautifulSoup
         import json
+
+        from bs4 import BeautifulSoup
         url = f"https://apps.apple.com/in/app/reviews/id{app_store_id}"
         log.info("ingest.appstore.fallback.start", url=url)
         try:
@@ -84,10 +87,13 @@ def fetch_appstore_reviews(product_key: str, app_store_id: str, since: datetime)
                                 data = json.loads(match.group(0))
                                 def find_reviews(obj):
                                     if isinstance(obj, dict):
-                                        if obj.get("$kind") == "Review": yield obj
-                                        for v in obj.values(): yield from find_reviews(v)
+                                        if obj.get("$kind") == "Review":
+                                            yield obj
+                                        for v in obj.values():
+                                            yield from find_reviews(v)
                                     elif isinstance(obj, list):
-                                        for item in obj: yield from find_reviews(item)
+                                        for item in obj:
+                                            yield from find_reviews(item)
                                 
                                 count = 0
                                 for r_data in find_reviews(data):
@@ -100,12 +106,13 @@ def fetch_appstore_reviews(product_key: str, app_store_id: str, since: datetime)
                                     
                                     try:
                                         review_date = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
-                                    except:
-                                        review_date = datetime.now(timezone.utc)
+                                    except ValueError:
+                                        review_date = datetime.now(UTC)
                                     
                                     if review_date.tzinfo is None:
                                         review_date = review_date.replace(tzinfo=since.tzinfo)
-                                    if review_date < since: continue
+                                    if review_date < since:
+                                        continue
                                     
                                     if not is_valid_review(body, language="en"):
                                         continue

@@ -136,7 +136,7 @@ def run_clustering(
     labels = clusterer.fit_predict(reduced)
 
     unique_labels = set(labels)
-    cluster_labels = sorted(l for l in unique_labels if l >= 0)
+    cluster_labels = sorted(lbl for lbl in unique_labels if lbl >= 0)
     noise_count = int(np.sum(labels == -1))
     noise_ratio = noise_count / len(labels) if len(labels) > 0 else 0.0
 
@@ -156,7 +156,7 @@ def run_clustering(
     clusters = []
     for label in cluster_labels:
         mask = labels == label
-        cluster_review_ids = [rid for rid, m in zip(review_ids, mask) if m]
+        cluster_review_ids = [rid for rid, m in zip(review_ids, mask, strict=True) if m]
         cluster_vectors = vectors[mask]
         cluster_texts = [
             r["body"] for r in review_rows if r["id"] in set(cluster_review_ids)

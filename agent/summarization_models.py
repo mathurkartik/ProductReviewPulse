@@ -10,7 +10,6 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-
 # ---------------------------------------------------------------------------
 # LLM response models (used with json_object mode)
 # ---------------------------------------------------------------------------

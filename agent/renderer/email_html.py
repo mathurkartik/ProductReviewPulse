@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from pathlib import Path
+
 from jinja2 import Environment, FileSystemLoader
 
 from agent.summarization_models import PulseSummary
+
 
 def render_emails(summary: PulseSummary, product_name: str, doc_link: str = "{DOC_DEEP_LINK}") -> tuple[str, str]:
     """Render the email HTML and plain text using Jinja2 templates.

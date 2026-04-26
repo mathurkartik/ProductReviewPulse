@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-import structlog
-from agent.mcp_client.session import MCPSession
-from agent.summarization_models import PulseSummary
-from agent.renderer.docs_tree import generate_doc_requests
-
 from pathlib import Path
+
+import structlog
+
+from agent.mcp_client.session import MCPSession
+from agent.renderer.docs_tree import generate_doc_requests
 from agent.storage import get_product_gdoc_id, set_product_gdoc_id
+from agent.summarization_models import PulseSummary
 
 log = structlog.get_logger()
 

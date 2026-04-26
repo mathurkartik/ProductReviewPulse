@@ -7,8 +7,8 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
-from agent.__main__ import app
 from agent import storage
+from agent.__main__ import app
 
 runner = CliRunner()
 

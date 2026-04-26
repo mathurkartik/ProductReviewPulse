@@ -64,17 +64,18 @@ def ingest(
     """Phase 1 - ingest App Store + Play Store reviews."""
     _setup_logging()
     
-    from agent.storage import (
-        get_connection,
-        current_iso_week,
-        make_run_id,
-        upsert_run,
-        set_run_status,
-        upsert_product,
-    )
+    from datetime import datetime, timedelta
+
     from agent.ingestion.appstore import fetch_appstore_reviews
     from agent.ingestion.playstore import fetch_playstore_reviews
-    from datetime import datetime, timedelta, timezone
+    from agent.storage import (
+        current_iso_week,
+        get_connection,
+        make_run_id,
+        set_run_status,
+        upsert_product,
+        upsert_run,
+    )
 
     settings = load_settings()
     
@@ -275,11 +276,12 @@ def render(
     """Phase 4 - render Google Docs batchUpdate requests and email HTML."""
     _setup_logging()
 
-    from agent.summarization_models import PulseSummary
-    from agent.renderer.docs_tree import generate_doc_requests
-    from agent.renderer.email_html import render_emails
     import json
     from pathlib import Path
+
+    from agent.renderer.docs_tree import generate_doc_requests
+    from agent.renderer.email_html import render_emails
+    from agent.summarization_models import PulseSummary
 
     settings = load_settings()
 
@@ -289,7 +291,7 @@ def render(
         log.error("render.summary_not_found", path=str(summary_path))
         raise typer.Exit(code=1)
 
-    with open(summary_path, "r", encoding="utf-8") as f:
+    with open(summary_path, encoding="utf-8") as f:
         summary = PulseSummary.model_validate_json(f.read())
 
     log.info("render.start", run_id=run)
@@ -338,9 +340,10 @@ def publish(
     """Phase 5+6 - publish to Google Docs and/or Gmail via custom REST API."""
     _setup_logging()
 
-    from agent.summarization_models import PulseSummary
-    from agent.mcp_client.docs_ops import append_pulse_section, resolve_document
     from pathlib import Path
+
+    from agent.mcp_client.docs_ops import append_pulse_section, resolve_document
+    from agent.summarization_models import PulseSummary
 
     settings = load_settings()
     url = settings.env.mcp_server_url
@@ -354,7 +357,7 @@ def publish(
         log.error("publish.summary_not_found", path=str(summary_path))
         raise typer.Exit(code=1)
 
-    with open(summary_path, "r", encoding="utf-8") as f:
+    with open(summary_path, encoding="utf-8") as f:
         summary = PulseSummary.model_validate_json(f.read())
 
     product_config = settings.get_product(summary.product)
@@ -395,9 +398,9 @@ def publish(
         from agent.mcp_client.gmail_ops import send_pulse_email
         
         artifact_dir = Path("data/artifacts") / run
-        with open(artifact_dir / "email.txt", "r", encoding="utf-8") as f:
+        with open(artifact_dir / "email.txt", encoding="utf-8") as f:
             email_txt = f.read().replace("{DOC_DEEP_LINK}", deep_link)
-        with open(artifact_dir / "email.html", "r", encoding="utf-8") as f:
+        with open(artifact_dir / "email.html", encoding="utf-8") as f:
             email_html = f.read().replace("{DOC_DEEP_LINK}", deep_link)
 
         recipients_to = [to] if to else product_config.recipients.to
@@ -463,7 +466,7 @@ def run_pipeline(
     """Phase 7 - full orchestration: ingest -> cluster -> summarize -> render -> publish."""
     _setup_logging()
     
-    from agent.storage import current_iso_week, make_run_id, get_run_status
+    from agent.storage import current_iso_week, get_run_status, make_run_id
     
     settings = load_settings()
     iso_week = week or current_iso_week()

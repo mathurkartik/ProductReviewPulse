@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import re
 import unicodedata
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import structlog
@@ -18,11 +18,11 @@ from agent.summarization_models import (
     AudienceValue,
     LLMMetrics,
     PulseCostExceeded,
-    PulseSummary,
     PulseStats,
-    Window,
+    PulseSummary,
     Quote,
     Theme,
+    Window,
 )
 
 log = structlog.get_logger()
@@ -225,7 +225,7 @@ def select_quotes(
 ) -> list[Quote]:
     reviews_block = "\n".join(
         f"[{m.get('source', 'playstore')} | {m.get('rating', '?')}★] {_scrub_pii(b[:400])}"
-        for b, m in zip(review_bodies, review_metadata)
+        for b, m in zip(review_bodies, review_metadata, strict=True)
     )
     prompt = SELECT_QUOTES_PROMPT.format(theme_name=theme_name, reviews_block=reviews_block)
     data = llm.call(prompt)
@@ -382,7 +382,7 @@ class Summarizer:
             )
 
         cursor.execute("UPDATE runs SET metrics_json = ?, status = 'summarized', updated_at = ? WHERE id = ?",
-            (self.llm.metrics.model_dump_json(), datetime.now(timezone.utc).isoformat(), run_id),
+            (self.llm.metrics.model_dump_json(), datetime.now(UTC).isoformat(), run_id),
         )
         conn.commit()
         conn.close()
