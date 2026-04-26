@@ -50,7 +50,7 @@ def create_message(to: str, subject: str, text: str, html: str = None, cc: str =
     return raw
 
 def get_or_create_label(service, label_name: str) -> str:
-    \"\"\"Find a label by name, or create it if it doesn't exist.\"\"\"
+    """Find a label by name, or create it if it doesn't exist."""
     results = service.users().labels().list(userId='me').execute()
     labels = results.get('labels', [])
     for lbl in labels:
@@ -67,7 +67,7 @@ def get_or_create_label(service, label_name: str) -> str:
     return created['id']
 
 def create_draft(to: str, subject: str, text: str, html: str = None, cc: str = "", bcc: str = "", headers: dict = None, label_name: str = None):
-    \"\"\"Create a Gmail draft.\"\"\"
+    """Create a Gmail draft."""
     try:
         logger.info(f"Creating Gmail draft for {to}")
         creds = get_creds()
