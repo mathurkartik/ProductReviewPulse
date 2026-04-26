@@ -488,6 +488,7 @@ def run_pipeline(
     week: str | None = typer.Option(None, help="Specific ISO week to backfill, e.g. 2026-W15"),
     publish_target: str = typer.Option("both", help="docs | gmail | both"),
     doc_id: str | None = typer.Option(None, help="Override Google Doc ID"),
+    to: str | None = typer.Option(None, help="Override recipient email address"),
 ) -> None:
     """Phase 7 - full orchestration: ingest -> cluster -> summarize -> render -> publish."""
     _setup_logging()
@@ -541,7 +542,7 @@ def run_pipeline(
 
     # 5. Publish
     if status == "rendered":
-        publish(run=run_id, target=publish_target, doc_id=doc_id, to=None)
+        publish(run=run_id, target=publish_target, doc_id=doc_id, to=to)
         status = "published"
     else:
         log.info("pipeline.skip_publish", status=status)

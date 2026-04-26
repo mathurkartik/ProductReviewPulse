@@ -29,4 +29,11 @@ jobs:
           PULSE_ENV: production
           AUTO_APPROVE: "true"
           MCP_SERVER_URL: ${{ secrets.MCP_SERVER_URL }}
-        run: uv run pulse run --product ${{ matrix.product }} --weeks 12 --publish-target both
+          GMAIL_TO: ${{ secrets.GMAIL_TO }}
+        run: |
+          # Pass --to only if GMAIL_TO is set
+          TO_FLAG=""
+          if [ -n "$GMAIL_TO" ]; then
+            TO_FLAG="--to $GMAIL_TO"
+          fi
+          uv run pulse run --product ${{ matrix.product }} --weeks 12 --publish-target both $TO_FLAG
