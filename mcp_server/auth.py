@@ -22,7 +22,14 @@ def get_creds():
     # 1. Load from Environment Variable (for Render)
     env_token = os.environ.get("GOOGLE_TOKEN_JSON")
     if env_token:
-        creds = Credentials.from_authorized_user_info(json.loads(env_token), SCOPES)
+        try:
+            token_dict = json.loads(env_token)
+            creds = Credentials.from_authorized_user_info(token_dict, SCOPES)
+        except json.JSONDecodeError as e:
+            if os.environ.get("RENDER"):
+                raise Exception(f"GOOGLE_TOKEN_JSON is set but contains invalid JSON: {e}")
+            else:
+                print(f"Error parsing GOOGLE_TOKEN_JSON: {e}")
     # 2. Fallback to local file
     elif os.path.exists(token_path):
         creds = Credentials.from_authorized_user_file(token_path, SCOPES)
@@ -33,7 +40,10 @@ def get_creds():
             creds.refresh(Request())
         else:
             if os.environ.get("RENDER"):
-                raise Exception("Missing GOOGLE_TOKEN_JSON env var or token is totally invalid.")
+                if not env_token:
+                    raise Exception("GOOGLE_TOKEN_JSON environment variable is missing completely on Render.")
+                else:
+                    raise Exception("GOOGLE_TOKEN_JSON is present but the token is expired and has no refresh_token.")
             
             # Local flow - check if credentials.json exists
             if not os.path.exists(creds_path):
