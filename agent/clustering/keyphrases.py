@@ -21,6 +21,14 @@ def _get_model():
     return _kw_model
 
 
+def free_model():
+    """Release the globally cached KeyBERT model to free memory."""
+    global _kw_model
+    _kw_model = None
+    import gc
+    gc.collect()
+
+
 def extract_keyphrases(
     review_texts: list[str],
     top_n: int = 8,

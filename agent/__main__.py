@@ -312,7 +312,8 @@ def render(
     doc_requests = generate_doc_requests(summary, product_config.display_name)
 
     # 2. Render Email HTML and Plain Text
-    email_html, email_txt = render_emails(summary, product_config.display_name)
+    dashboard_link = f"{settings.env.m2_frontend_url.rstrip('/')}/pulse/{run}"
+    email_html, email_txt = render_emails(summary, product_config.display_name, dashboard_link=dashboard_link)
 
     # 3. Save artifacts
     artifact_dir = Path("data/artifacts") / run
@@ -527,6 +528,9 @@ def run_pipeline(
         log.info("pipeline.skip_cluster", status=status)
 
     # 3. Summarize
+    import gc
+    gc.collect()
+
     if status == "clustered":
         summarize(run=run_id)
         status = "summarized"

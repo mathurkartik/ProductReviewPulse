@@ -57,6 +57,7 @@ class EnvSettings(BaseSettings):
 
     groq_api_key: str = ""
     mcp_server_url: str = ""
+    m2_frontend_url: str = "http://localhost:3000"
     confirm_send: bool = False
     pulse_env: str = "development"
     db_path: Path = ROOT / "data" / "pulse.db"

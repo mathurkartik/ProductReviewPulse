@@ -10,7 +10,7 @@ from agent.summarization_models import PulseSummary
 
 
 def render_emails(
-    summary: PulseSummary, product_name: str, doc_link: str = "{DOC_DEEP_LINK}"
+    summary: PulseSummary, product_name: str, doc_link: str = "{DOC_DEEP_LINK}", dashboard_link: str = ""
 ) -> tuple[str, str]:
     """Render the email HTML and plain text using Jinja2 templates.
     Returns (html_content, text_content).
@@ -28,6 +28,7 @@ def render_emails(
         iso_week=iso_week_str,
         themes=summary.top_themes,
         doc_link=doc_link,
+        dashboard_link=dashboard_link,
     )
 
     txt_content = txt_template.render(
@@ -35,6 +36,7 @@ def render_emails(
         iso_week=iso_week_str,
         themes=summary.top_themes,
         doc_link=doc_link,
+        dashboard_link=dashboard_link,
     )
 
     return html_content, txt_content

@@ -205,6 +205,12 @@ def run_clustering(
 
     log.info("clustering.persisted", clusters=len(clusters))
 
+    # Free memory to prevent OOM in subsequent pipeline phases
+    from agent.clustering.keyphrases import free_model
+    free_model()
+    import gc
+    gc.collect()
+
     return {
         "cluster_count": len(clusters),
         "noise_ratio": round(noise_ratio, 3),
