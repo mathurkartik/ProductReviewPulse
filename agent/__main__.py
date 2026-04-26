@@ -64,6 +64,9 @@ def ingest(
     """Phase 1 - ingest App Store + Play Store reviews."""
     _setup_logging()
 
+    settings = load_settings()
+    storage.init_db(settings.env.db_path)
+
     from datetime import datetime, timedelta
 
     from agent.ingestion.appstore import fetch_appstore_reviews
@@ -77,7 +80,7 @@ def ingest(
         upsert_run,
     )
 
-    settings = load_settings()
+    # settings already loaded above
 
     try:
         product_config = settings.get_product(product)
@@ -183,9 +186,10 @@ def cluster(
     """Phase 2 - embed reviews and run UMAP + HDBSCAN clustering."""
     _setup_logging()
 
-    from agent.clustering.pipeline import run_clustering
-
     settings = load_settings()
+    storage.init_db(settings.env.db_path)
+
+    from agent.clustering.pipeline import run_clustering
 
     # Validate run exists and is in correct status
     status = storage.get_run_status(settings.env.db_path, run)
@@ -235,6 +239,7 @@ def summarize(
     from agent.summarization_models import PulseCostExceeded
 
     settings = load_settings()
+    storage.init_db(settings.env.db_path)
 
     # Validate status
     status = storage.get_run_status(settings.env.db_path, run)
@@ -288,6 +293,7 @@ def render(
     from agent.summarization_models import PulseSummary
 
     settings = load_settings()
+    storage.init_db(settings.env.db_path)
 
     # Load summary
     summary_path = Path("data/summaries") / f"{run}.json"
@@ -349,6 +355,7 @@ def publish(
     from agent.summarization_models import PulseSummary
 
     settings = load_settings()
+    storage.init_db(settings.env.db_path)
     url = settings.env.mcp_server_url
     if not url:
         log.error("publish.no_mcp_url", msg="MCP_SERVER_URL missing in .env")
@@ -488,6 +495,7 @@ def run_pipeline(
     from agent.storage import current_iso_week, get_run_status, make_run_id
 
     settings = load_settings()
+    storage.init_db(settings.env.db_path)
     iso_week = week or current_iso_week()
     run_id = make_run_id(product, iso_week)
 
