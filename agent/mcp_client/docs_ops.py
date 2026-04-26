@@ -36,11 +36,16 @@ def resolve_document(
     # 2. If not found or deleted, create it via Docs API
     log.info("docs.resolve.create", title=doc_title)
     resp = session.call_tool("docs.create_document", {"title": doc_title})
+
+    # Check for MCP server errors first
+    if resp.get("status") == "error":
+        raise RuntimeError(f"Docs API error: {resp.get('message', 'unknown error')}")
+
     doc_id = resp.get("document_id")
 
     # Save to database for next time
     if not doc_id or not isinstance(doc_id, str):
-        raise RuntimeError("Failed to create document: no valid document_id returned")
+        raise RuntimeError(f"Failed to create document: no valid document_id returned. Response: {resp}")
 
     set_product_gdoc_id(db_path, product_key, doc_id)
 
@@ -118,6 +123,10 @@ def append_pulse_section(
 
     log.info("docs.batch_update", doc_id=doc_id, request_count=len(doc_requests))
     result = session.call_tool("docs.batch_update", {"doc_id": doc_id, "requests": doc_requests})
+    
+    if result.get("status") == "error":
+        raise Exception(f"Google Docs batch_update failed: {result.get('message')}")
+        
     log.info("docs.append_done", status=result.get("status"))
 
     # 3. Re-fetch to get headingId

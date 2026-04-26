@@ -51,7 +51,7 @@ def get_document(doc_id: str):
 
 def batch_update(doc_id: str, requests: list):
     try:
-        logger.info(f"Starting batch_update for doc_id={doc_id}")
+        logger.info(f"Starting batch_update for doc_id={doc_id}, requests={len(requests)}")
         creds = get_creds()
         service = build("docs", "v1", credentials=creds)
         
@@ -60,10 +60,13 @@ def batch_update(doc_id: str, requests: list):
             body={"requests": requests}
         ).execute()
         
+        logger.info(f"batch_update success: {len(result.get('replies', []))} replies")
         return {
             "status": "success",
             "replies": result.get("replies", [])
         }
     except Exception as e:
-        logger.error(f"batch_update error: {e}")
-        return {"status": "error", "message": str(e)}
+        logger.error(f"batch_update error: {type(e).__name__}: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return {"status": "error", "message": f"{type(e).__name__}: {str(e)}"}

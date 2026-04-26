@@ -37,3 +37,18 @@ jobs:
             TO_FLAG="--to $GMAIL_TO"
           fi
           uv run pulse run --product ${{ matrix.product }} --weeks 12 --publish-target both $TO_FLAG
+
+      - name: Sync Database to Render
+        if: success()
+        env:
+          MCP_SERVER_URL: ${{ secrets.MCP_SERVER_URL }}
+          SYNC_API_KEY: ${{ secrets.SYNC_API_KEY }}
+        run: |
+          if [ -n "$SYNC_API_KEY" ]; then
+            echo "Syncing database to Render..."
+            curl -X POST "${MCP_SERVER_URL%/}/api/sync/db" \
+              -H "X-Sync-Key: $SYNC_API_KEY" \
+              -F "file=@pulse.sqlite"
+          else
+            echo "Skipping sync: SYNC_API_KEY not set."
+          fi

@@ -51,20 +51,24 @@ def create_message(to: str, subject: str, text: str, html: str = None, cc: str =
 
 def get_or_create_label(service, label_name: str) -> str:
     """Find a label by name, or create it if it doesn't exist."""
-    results = service.users().labels().list(userId='me').execute()
-    labels = results.get('labels', [])
-    for lbl in labels:
-        if lbl['name'] == label_name:
-            return lbl['id']
-            
-    # Create it
-    label_object = {
-        'messageListVisibility': 'show',
-        'name': label_name,
-        'labelListVisibility': 'labelShow'
-    }
-    created = service.users().labels().create(userId='me', body=label_object).execute()
-    return created['id']
+    try:
+        results = service.users().labels().list(userId='me').execute()
+        labels = results.get('labels', [])
+        for lbl in labels:
+            if lbl['name'] == label_name:
+                return lbl['id']
+                
+        # Create it
+        label_object = {
+            'messageListVisibility': 'show',
+            'name': label_name,
+            'labelListVisibility': 'labelShow'
+        }
+        created = service.users().labels().create(userId='me', body=label_object).execute()
+        return created['id']
+    except Exception as e:
+        logger.warning(f"Could not get or create label '{label_name}': {e}. Missing gmail.labels scope?")
+        return None
 
 def create_draft(to: str, subject: str, text: str, html: str = None, cc: str = "", bcc: str = "", headers: dict = None, label_name: str = None):
     """Create a Gmail draft."""
@@ -80,7 +84,9 @@ def create_draft(to: str, subject: str, text: str, html: str = None, cc: str = "
         # Note: Labels cannot be set on drafts via Gmail API
         # Labels are applied after the message is sent
         if label_name:
-            logger.info(f"Label '{label_name}' will be applied when message is sent (not supported on drafts)")
+            lbl_id = get_or_create_label(service, label_name)
+            if lbl_id:
+                body_obj["message"]["labelIds"] = [lbl_id]
             
         draft = service.users().drafts().create(userId="me", body=body_obj).execute()
         

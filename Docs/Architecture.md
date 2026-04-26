@@ -16,7 +16,11 @@ Building a generic Google Workspace integration — we use only the MCP tools we
 Real-time streaming analytics (this is a weekly batch).
 A BI dashboard — the Google Doc is the dashboard.
 Social media ingestion (Twitter/Reddit) — out of scope.
-3. MCP Integration (the Google Workspace surface)
+3. Web Dashboard (Vercel) & Data API
+To provide a real-time UI, a Next.js dashboard is hosted on Vercel. 
+The dashboard fetches data from the MCP Server on Render, which exposes a `/api/pulse/latest` endpoint serving data from its local `pulse.sqlite` database.
+
+4. MCP Integration (the Google Workspace surface)
 The agent acts as an MCP Host and Client. It connects to two MCP servers, each wrapping a Google Workspace product.
 3.1 Google Docs MCP Server
 Purpose: append the rendered weekly pulse as a new dated section to a running Google Doc (one doc per product).

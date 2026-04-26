@@ -1,7 +1,11 @@
 import logging
 import os
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File, Header
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+import sqlite3
+import shutil
+from pathlib import Path
 
 # Re-create credentials.json from environment variable for Google libraries
 if os.environ.get("GOOGLE_CREDENTIALS_JSON"):
@@ -19,6 +23,18 @@ logger = logging.getLogger(__name__)
 
 # ---------------- APP INIT ---------------- #
 app = FastAPI(title="Google MCP Server")
+
+# Enable CORS for Vercel
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, replace with your Vercel URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Database Path
+DB_PATH = Path(os.environ.get("PULSE_DB_PATH", "pulse.sqlite"))
 
 
 # ---------------- REQUEST SCHEMAS ---------------- #
@@ -162,5 +178,125 @@ def run_send(data: SendMessageInput):
 @app.get("/")
 def root():
     return {
-        "message": "Google MCP Server is running 🚀"
+        "status": "online",
+        "message": "Google MCP Server & Pulse API is running 🚀"
     }
+
+# ---------------- DATABASE SYNC API ---------------- #
+@app.post("/api/sync/db")
+async def sync_database(
+    file: UploadFile = File(...),
+    x_sync_key: str = Header(None, alias="X-Sync-Key")
+):
+    """Securely receive the latest pulse.sqlite from GitHub Actions."""
+    expected_key = os.environ.get("SYNC_API_KEY")
+    if not expected_key or x_sync_key != expected_key:
+        raise HTTPException(status_code=403, detail="Invalid or missing X-Sync-Key")
+
+    try:
+        # Save the uploaded file to a temporary location first
+        temp_path = DB_PATH.with_suffix(".tmp")
+        with temp_path.open("wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        # Verify it's a valid SQLite file
+        try:
+            test_conn = sqlite3.connect(temp_path)
+            test_conn.execute("SELECT name FROM sqlite_master LIMIT 1")
+            test_conn.close()
+        except Exception:
+            if temp_path.exists(): temp_path.unlink()
+            raise HTTPException(status_code=400, detail="Uploaded file is not a valid SQLite database")
+
+        # Atomic swap
+        shutil.move(str(temp_path), str(DB_PATH))
+        logger.info(f"Database synced successfully via API from {file.filename}")
+        return {"status": "success", "message": "Database updated"}
+    except Exception as e:
+        logger.error(f"Error syncing database: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ---------------- PULSE DATA API ---------------- #
+@app.get("/api/pulse/latest")
+def get_latest_pulse_data():
+    """Fetch the most recent successful run."""
+    if not DB_PATH.exists():
+        raise HTTPException(status_code=404, detail=f"Database not found at {DB_PATH}")
+    
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        latest_run = cursor.execute(
+            "SELECT id FROM runs WHERE status = 'summarized' ORDER BY updated_at DESC LIMIT 1"
+        ).fetchone()
+        
+        if not latest_run:
+            raise HTTPException(status_code=404, detail="No successful runs found")
+            
+        return get_pulse_data(latest_run["id"])
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching latest pulse data: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/pulse/{run_id}")
+def get_pulse_data(run_id: str):
+    """Fetch summarized data for the dashboard."""
+    if not DB_PATH.exists():
+        raise HTTPException(status_code=404, detail=f"Database not found at {DB_PATH}")
+
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        # 1. Fetch Run Metadata
+        run = cursor.execute("SELECT * FROM runs WHERE id = ?", (run_id,)).fetchone()
+        if not run:
+            raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+
+        # 2. Fetch Product Info
+        product = cursor.execute("SELECT * FROM products WHERE key = ?", (run["product_key"],)).fetchone()
+
+        # 3. Fetch Top Themes
+        themes = cursor.execute(
+            "SELECT * FROM themes WHERE run_id = ? ORDER BY rank ASC", (run_id,)
+        ).fetchall()
+
+        # 4. Fetch a few sample reviews (Quotes fallback)
+        quotes = []
+        clusters = cursor.execute(
+            "SELECT medoid_review_id FROM clusters WHERE run_id = ? LIMIT 3", (run_id,)
+        ).fetchall()
+        
+        for c in clusters:
+            rev = cursor.execute(
+                "SELECT body, rating, source FROM reviews WHERE id = ?", (c["medoid_review_id"],)
+            ).fetchone()
+            if rev:
+                quotes.append({
+                    "text": rev["body"],
+                    "rating": rev["rating"],
+                    "source": rev["source"]
+                })
+
+        return {
+            "run_id": run["id"],
+            "product": product["display"] if product else run["product_key"],
+            "iso_week": run["iso_week"],
+            "status": run["status"],
+            "window": {
+                "start": run["window_start"],
+                "end": run["window_end"]
+            },
+            "themes": [dict(t) for t in themes],
+            "quotes": quotes
+        }
+    except Exception as e:
+        logger.error(f"Error fetching pulse data: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()

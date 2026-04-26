@@ -202,9 +202,7 @@ def generate_doc_requests(
 
     current_idx = pointer
 
-    # Horizontal rule at the end
-    requests.append(
-        {"insertSectionBreak": {"sectionType": "NEXT_PAGE", "location": {"index": current_idx}}}
-    )
-
+    # Add padding newlines at the end
+    requests.append({"insertText": {"location": {"index": current_idx}, "text": "\n\n"}})
+    
     return requests

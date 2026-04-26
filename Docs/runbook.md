@@ -5,8 +5,9 @@ This runbook covers the operational procedures and troubleshooting steps for the
 
 ## Architecture Refresher
 - **Agent**: Runs in GitHub Actions. Responsible for ingestion, clustering, summarization, and rendering.
-- **MCP Server**: Runs on Render. Exposes tools to interact with Google Docs and Gmail. The agent connects via HTTP REST.
-- **Database**: SQLite `pulse.sqlite`, preserved using caching or artifact storage depending on the CI/CD setup.
+- **MCP Server & API**: Runs on Render. Exposes tools to interact with Google Docs and Gmail, AND serves the `/api/pulse/latest` data API.
+- **Frontend Dashboard**: Hosted on Vercel (Next.js). Fetches and visualizes data directly from the Render API.
+- **Database (`pulse.sqlite`)**: Generated on GitHub Actions, then automatically **synced** to the Render Server's persistent disk at the end of each run via the `/api/sync/db` endpoint.
 
 ## 1. Pipeline Execution & Re-runs
 ### Backfilling or Re-running a Specific Week
@@ -40,6 +41,12 @@ You can trigger the pipeline manually via the GitHub Actions "Run workflow" UI.
 ### Scenario C: "Google Doc is missing or deleted"
 - **Cause**: Someone deleted the target Google Doc, but the agent still has the old ID cached in SQLite.
 - **Resolution**: The agent now automatically handles this by verifying the Doc ID. If it receives a 404, it will automatically create a new Doc and update the cache. Just re-run.
+
+### Scenario D: "Dashboard on Vercel is not updating"
+- **Cause**: The GitHub Action failed before it could reach the "Sync Database" step, or the `SYNC_API_KEY` is mismatched between GitHub Secrets and Render Environment Variables.
+- **Resolution**: 
+  1. Verify `SYNC_API_KEY` matches perfectly on both platforms.
+  2. Re-run the GitHub Action workflow manually. Only a fully successful run will sync the database.
 
 ### Scenario D: "Ingestion returns 0 reviews"
 - **Cause**: App Store/Play Store APIs might be rate-limiting, or the product hasn't received reviews.

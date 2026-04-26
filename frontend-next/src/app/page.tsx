@@ -1,8 +1,58 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+
+interface Theme {
+  id: string;
+  rank: number;
+  label: string;
+  description: string;
+  sentiment: 'negative' | 'mixed' | 'positive';
+  review_count: number;
+}
+
+interface Quote {
+  text: str;
+  rating: number;
+  source: string;
+}
+
+interface PulseData {
+  run_id: string;
+  product: string;
+  iso_week: string;
+  status: string;
+  window: { start: string; end: string };
+  themes: Theme[];
+  quotes: Quote[];
+}
 
 export default function Dashboard() {
+  const [data, setData] = useState<PulseData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        const res = await fetch(`${apiUrl}/api/pulse/latest`);
+        if (!res.ok) throw new Error(`Failed to fetch: ${res.statusText}`);
+        const json = await res.json();
+        setData(json);
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  if (loading) return <div className="loading-state">Loading latest pulse report...</div>;
+  if (error) return <div className="error-state">Error: {error}. Make sure your Render API is live.</div>;
+  if (!data) return <div className="empty-state">No pulse data found.</div>;
+
   return (
     <div>
       {/* Top Navigation Bar */}
@@ -65,10 +115,10 @@ export default function Dashboard() {
           {/* Page Header */}
           <div className="page-header">
             <div className="header-titles">
-              <h1>Groww — Weekly Review Pulse</h1>
+              <h1>{data.product} — Weekly Review Pulse</h1>
               <div className="header-meta">
-                <span className="badge">REPORT ID: WR-2023-42</span>
-                <span className="period">Period: Last 8-12 weeks (rolling window)</span>
+                <span className="badge">WEEK: {data.iso_week}</span>
+                <span className="period">Period: {data.window.start} to {data.window.end}</span>
               </div>
             </div>
             <div className="header-actions">
@@ -90,32 +140,18 @@ export default function Dashboard() {
                 <span className="card-subtitle">AGGREGATED SENTIMENT</span>
               </div>
               <div className="themes-list">
-                <div className="theme-item theme-critical">
-                  <div className="theme-title-row">
-                    <h4>App performance & bugs</h4>
-                    <span className="tag tag-critical"><span className="dot"></span> CRITICAL</span>
-                    <span className="trend trend-critical">42% Growth</span>
+                {data.themes.map((theme) => (
+                  <div key={theme.id} className={`theme-item theme-${theme.sentiment}`}>
+                    <div className="theme-title-row">
+                      <h4>{theme.label}</h4>
+                      <span className={`tag tag-${theme.sentiment}`}>
+                        <span className="dot"></span> {theme.sentiment.toUpperCase()}
+                      </span>
+                      <span className="trend">{theme.review_count} reviews</span>
+                    </div>
+                    <p>{theme.description}</p>
                   </div>
-                  <p>Systematic lag, frequent app crashes, and login timeouts reported across various regions.</p>
-                </div>
-                
-                <div className="theme-item theme-negative">
-                  <div className="theme-title-row">
-                    <h4>Customer support friction</h4>
-                    <span className="tag tag-negative"><span className="dot"></span> NEGATIVE</span>
-                    <span className="trend trend-negative">28% Impact</span>
-                  </div>
-                  <p>Increasing dissatisfaction with slow response times and non-resolution of complex queries.</p>
-                </div>
-                
-                <div className="theme-item theme-neutral">
-                  <div className="theme-title-row">
-                    <h4>UX & feature gaps</h4>
-                    <span className="tag tag-neutral"><span className="dot"></span> NEUTRAL</span>
-                    <span className="trend trend-neutral">15% Trend</span>
-                  </div>
-                  <p>Users finding certain navigation paths confusing; requests for advanced technical analysis tools.</p>
-                </div>
+                ))}
               </div>
             </div>
 
@@ -125,60 +161,28 @@ export default function Dashboard() {
               {/* Market Sentiment Card */}
               <div className="card sentiment-card">
                 <div className="card-header">
-                  <h3>Market Sentiment</h3>
+                  <h3>Overall Status</h3>
                 </div>
                 <div className="sentiment-chart-container">
                   <div className="donut-chart">
-                    <svg viewBox="0 0 36 36" className="circular-chart">
-                      <path className="circle-bg"
-                        d="M18 2.0845
-                        a 15.9155 15.9155 0 0 1 0 31.831
-                        a 15.9155 15.9155 0 0 1 0 -31.831"
-                      />
-                      <path className="circle"
-                        strokeDasharray="62, 100"
-                        d="M18 2.0845
-                        a 15.9155 15.9155 0 0 1 0 31.831
-                        a 15.9155 15.9155 0 0 1 0 -31.831"
-                      />
-                    </svg>
                     <div className="donut-content">
-                      <span className="donut-number">62</span>
-                      <span className="donut-label">VOLATILITY</span>
+                      <span className="donut-number" style={{ fontSize: '1.5rem' }}>{data.status.toUpperCase()}</span>
                     </div>
                   </div>
                 </div>
-                <p className="sentiment-desc">Sentiment score is down 12% from previous rolling window due to API instability.</p>
+                <p className="sentiment-desc">This report was generated for the {data.iso_week} cycle.</p>
               </div>
 
-              {/* Action Ideas Card */}
+              {/* Action Ideas Card Placeholder */}
               <div className="card action-card">
                 <div className="action-header">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00D09C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18h6"></path><path d="M10 22h4"></path><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"></path></svg>
-                  <h3>Action Ideas</h3>
+                  <h3>AI Insights</h3>
                 </div>
                 <div className="action-list">
-                  <div className="action-item">
-                    <div className="action-num">01.</div>
-                    <div className="action-text">
-                      <h4>Stabilize peak-time performance</h4>
-                      <p>Optimize socket connections during market open (9:15 AM).</p>
-                    </div>
-                  </div>
-                  <div className="action-item">
-                    <div className="action-num">02.</div>
-                    <div className="action-text">
-                      <h4>Improve support SLA visibility</h4>
-                      <p>Add real-time queue position indicators in the help desk.</p>
-                    </div>
-                  </div>
-                  <div className="action-item">
-                    <div className="action-num">03.</div>
-                    <div className="action-text">
-                      <h4>Enhance power-user features</h4>
-                      <p>Roll out advanced charting beta for high-AUM accounts.</p>
-                    </div>
-                  </div>
+                  <p style={{ fontSize: '0.9rem', color: '#666', padding: '10px' }}>
+                    Based on {data.themes.length} identified themes, the system is monitoring for operational improvements.
+                  </p>
                 </div>
               </div>
 
@@ -192,77 +196,12 @@ export default function Dashboard() {
               <h3>Real User Voices</h3>
             </div>
             <div className="quotes-grid">
-              <div className="quote-box">
-                <p className="quote-text">"The app freezes exactly when the market opens, very frustrating."</p>
-                <p className="quote-author">— High Frequency Trader</p>
-              </div>
-              <div className="quote-box">
-                <p className="quote-text">"Support takes days to reply and doesn't solve the issue."</p>
-                <p className="quote-author">— Verified User</p>
-              </div>
-              <div className="quote-box">
-                <p className="quote-text">"Good for beginners but lacks detailed analysis tools."</p>
-                <p className="quote-author">— Advanced Investor</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Operational Insights Section */}
-          <div className="card metrics-card">
-            <div className="card-header">
-              <h3>Operational Insights</h3>
-              <div className="legend">
-                <span className="legend-item"><span className="dot dot-success"></span> SUCCESS</span>
-                <span className="legend-item"><span className="dot dot-danger"></span> FAILURES</span>
-              </div>
-            </div>
-            <div className="metrics-grid">
-              <div className="metric-item">
-                <span className="metric-label">API UPTIME</span>
-                <span className="metric-value">99.92%</span>
-                <div className="progress-bar"><div className="progress fill-success" style={{ width: '99.92%' }}></div></div>
-              </div>
-              <div className="metric-item">
-                <span className="metric-label">AVG LATENCY</span>
-                <span className="metric-value">24ms</span>
-                <div className="progress-bar"><div className="progress fill-success" style={{ width: '24%' }}></div></div>
-              </div>
-              <div className="metric-item">
-                <span className="metric-label">TICKET VOLUME</span>
-                <span className="metric-value">1.2k <span className="metric-unit">/day</span></span>
-                <div className="progress-bar"><div className="progress fill-danger" style={{ width: '80%' }}></div></div>
-              </div>
-              <div className="metric-item">
-                <span className="metric-label">USER CHURN RISK</span>
-                <span className="metric-value">Medium</span>
-                <div className="progress-bar"><div className="progress fill-neutral" style={{ width: '50%' }}></div></div>
-              </div>
-            </div>
-          </div>
-
-          {/* Bottom Layout */}
-          <div className="bottom-layout">
-            <div className="solves-section">
-              <h3>What this solves</h3>
-              <p>This report identifies critical technical bottlenecks causing user drop-off and provides a direct roadmap for CX alignment. By focusing on peak-time stability, we protect the primary revenue window.</p>
-            </div>
-            
-            <div className="metadata-card">
-              <h4>MCP DELIVERY METADATA</h4>
-              <ul className="meta-list">
-                <li>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                  Archived: <a href="#">Groww_WR_42.doc</a>
-                </li>
-                <li>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-                  Email sent to stakeholders
-                </li>
-                <li>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                  Next review: Oct 28, 2023
-                </li>
-              </ul>
+              {data.quotes.map((quote, idx) => (
+                <div key={idx} className="quote-box">
+                  <p className="quote-text">"{quote.text}"</p>
+                  <p className="quote-author">— Rating: {quote.rating}★ ({quote.source})</p>
+                </div>
+              ))}
             </div>
           </div>
 
