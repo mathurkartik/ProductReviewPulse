@@ -229,13 +229,13 @@ def get_latest_pulse_data():
         cursor = conn.cursor()
         
         latest_run = cursor.execute(
-            "SELECT id FROM runs WHERE status IN ('summarized', 'published') ORDER BY updated_at DESC LIMIT 1"
+            "SELECT run_id FROM runs WHERE status IN ('summarized', 'published') ORDER BY updated_at DESC LIMIT 1"
         ).fetchone()
         
         if not latest_run:
             raise HTTPException(status_code=404, detail="No successful runs found")
             
-        return get_pulse_data(latest_run["id"])
+        return get_pulse_data(latest_run["run_id"])
     except HTTPException:
         raise
     except Exception as e:
@@ -254,7 +254,9 @@ def get_pulse_data(run_id: str):
         cursor = conn.cursor()
 
         # 1. Fetch Run Metadata
-        run = cursor.execute("SELECT * FROM runs WHERE id = ?", (run_id,)).fetchone()
+        run = cursor.execute(
+            "SELECT * FROM runs WHERE run_id = ?", (run_id,)
+        ).fetchone()
         if not run:
             raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
 
@@ -284,7 +286,7 @@ def get_pulse_data(run_id: str):
                 })
 
         return {
-            "run_id": run["id"],
+            "run_id": run["run_id"],
             "product": product["display"] if product else run["product_key"],
             "iso_week": run["iso_week"],
             "status": run["status"],
