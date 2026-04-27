@@ -12,7 +12,7 @@ interface Theme {
 }
 
 interface Quote {
-  text: str;
+  text: string;
   rating: number;
   source: string;
 }
