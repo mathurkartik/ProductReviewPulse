@@ -82,7 +82,7 @@ CREATE TABLE IF NOT EXISTS review_embeddings (
 );
 
 CREATE TABLE IF NOT EXISTS runs (
-    run_id           TEXT PRIMARY KEY,
+    id               TEXT PRIMARY KEY,
     product_key      TEXT REFERENCES products(key),
     iso_week         TEXT NOT NULL,
     window_start     DATE NOT NULL,
@@ -97,7 +97,7 @@ CREATE TABLE IF NOT EXISTS runs (
 
 CREATE TABLE IF NOT EXISTS themes (
     id                             TEXT PRIMARY KEY,
-    run_id                         TEXT REFERENCES runs(run_id),
+    run_id                         TEXT REFERENCES runs(id),
     rank                           INTEGER NOT NULL,
     label                          TEXT NOT NULL,
     description                    TEXT NOT NULL,
@@ -108,7 +108,7 @@ CREATE TABLE IF NOT EXISTS themes (
 
 CREATE TABLE IF NOT EXISTS clusters (
     id               TEXT PRIMARY KEY,
-    run_id           TEXT REFERENCES runs(run_id),
+    run_id           TEXT REFERENCES runs(id),
     review_ids_json  TEXT NOT NULL,
     keyphrases_json  TEXT NOT NULL,
     medoid_review_id TEXT REFERENCES reviews(id)
@@ -226,7 +226,7 @@ def set_run_status(db_path: Path, run_id: str, status: str) -> None:
     with contextlib.closing(get_connection(db_path)) as conn:
         with conn:
             conn.execute(
-                "UPDATE runs SET status=?, updated_at=? WHERE run_id=?",
+                "UPDATE runs SET status=?, updated_at=? WHERE id=?",
                 (status, _now_utc(), run_id),
             )
 
@@ -234,7 +234,7 @@ def set_run_status(db_path: Path, run_id: str, status: str) -> None:
 def get_run_status(db_path: Path, run_id: str) -> str | None:
     """Return current status string, or None if run doesn't exist."""
     with contextlib.closing(get_connection(db_path)) as conn:
-        row = conn.execute("SELECT status FROM runs WHERE run_id=?", (run_id,)).fetchone()
+        row = conn.execute("SELECT status FROM runs WHERE id=?", (run_id,)).fetchone()
     return row["status"] if row else None
 
 
@@ -243,6 +243,6 @@ def set_run_gmail_id(db_path: Path, run_id: str, message_id: str) -> None:
     with contextlib.closing(get_connection(db_path)) as conn:
         with conn:
             conn.execute(
-                "UPDATE runs SET gmail_message_id=?, updated_at=? WHERE run_id=?",
+                "UPDATE runs SET gmail_message_id=?, updated_at=? WHERE id=?",
                 (message_id, _now_utc(), run_id),
             )

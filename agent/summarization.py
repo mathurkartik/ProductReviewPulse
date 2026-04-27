@@ -314,7 +314,7 @@ class Summarizer:
         with contextlib.closing(get_connection(self.settings.env.db_path)) as conn:
             cursor = conn.cursor()
 
-            run = cursor.execute("SELECT * FROM runs WHERE run_id = ?", (run_id,)).fetchone()
+            run = cursor.execute("SELECT * FROM runs WHERE id = ?", (run_id,)).fetchone()
             if not run:
                 raise ValueError(f"Run {run_id} not found")
 
