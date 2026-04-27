@@ -165,19 +165,20 @@ def upsert_product(
     gmail_to: str | None = None,
 ) -> None:
     """Insert or update product metadata."""
+    now = _now_utc()
     with contextlib.closing(get_connection(db_path)) as conn:
         with conn:
             conn.execute(
                 """
-                INSERT INTO products (key, display, appstore_id, play_package, gmail_to)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO products (key, display, appstore_id, play_package, gmail_to, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT(key) DO UPDATE SET
                     display=excluded.display,
                     appstore_id=excluded.appstore_id,
                     play_package=excluded.play_package,
                     gmail_to=excluded.gmail_to
                 """,
-                (key, display, appstore_id, play_package, gmail_to),
+                (key, display, appstore_id, play_package, gmail_to, now),
             )
 
 

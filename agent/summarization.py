@@ -309,6 +309,7 @@ class Summarizer:
 
     def run_summarization(self, run_id: str) -> PulseSummary:
         import contextlib
+
         log.info("summarize.start", run_id=run_id)
 
         with contextlib.closing(get_connection(self.settings.env.db_path)) as conn:
@@ -379,7 +380,9 @@ class Summarizer:
                     review_metadata=metadata,
                     review_pool_for_validation=bodies,
                 )
-                log.info("summarize.quotes_selected", theme=theme_data.get("label"), valid=len(quotes))
+                log.info(
+                    "summarize.quotes_selected", theme=theme_data.get("label"), valid=len(quotes)
+                )
 
                 all_quotes.extend(quotes)
 
@@ -400,7 +403,8 @@ class Summarizer:
 
             # Rank themes
             discovered_themes.sort(
-                key=lambda t: t.review_count * sentiment_score_map.get(t.sentiment, 0.5), reverse=True
+                key=lambda t: t.review_count * sentiment_score_map.get(t.sentiment, 0.5),
+                reverse=True,
             )
             top_themes = discovered_themes[:3]
 

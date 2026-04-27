@@ -72,7 +72,7 @@ def send_pulse_email(
 
     if draft_res.get("status") == "error":
         raise Exception(f"Gmail create_draft failed: {draft_res.get('message')}")
-        
+
     draft_id = draft_res["draft_id"]
     log.info("gmail.draft_created", draft_id=draft_id)
 

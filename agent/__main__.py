@@ -313,8 +313,10 @@ def render(
 
     # 2. Render Email HTML and Plain Text
     # Frontend always shows latest run via /api/pulse/latest, so just link to base URL
-    dashboard_link = settings.env.m2_frontend_url.rstrip('/')
-    email_html, email_txt = render_emails(summary, product_config.display_name, dashboard_link=dashboard_link)
+    dashboard_link = settings.env.m2_frontend_url.rstrip("/")
+    email_html, email_txt = render_emails(
+        summary, product_config.display_name, dashboard_link=dashboard_link
+    )
 
     # 3. Save artifacts
     artifact_dir = Path("data/artifacts") / run
@@ -530,6 +532,7 @@ def run_pipeline(
 
     # 3. Summarize
     import gc
+
     gc.collect()
 
     if status == "clustered":

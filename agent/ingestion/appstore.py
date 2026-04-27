@@ -90,10 +90,15 @@ def fetch_appstore_reviews(
 
                         rating = int(entry.get("im:rating", {}).get("label", "0"))
                         version = entry.get("im:version", {}).get("label")
-                        
+
                         rev = _process_review(
-                            product_key, external_id, entry.get("title", {}).get("label"),
-                            body_text, rating, review_date, version
+                            product_key,
+                            external_id,
+                            entry.get("title", {}).get("label"),
+                            body_text,
+                            rating,
+                            review_date,
+                            version,
                         )
                         if rev:
                             yield rev
@@ -149,8 +154,13 @@ def fetch_appstore_reviews(
                                         continue
 
                                     rev = _process_review(
-                                        product_key, str(ext_id), title, body,
-                                        int(rating) if rating else None, review_date, None
+                                        product_key,
+                                        str(ext_id),
+                                        title,
+                                        body,
+                                        int(rating) if rating else None,
+                                        review_date,
+                                        None,
                                     )
                                     if rev:
                                         count += 1

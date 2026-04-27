@@ -207,8 +207,10 @@ def run_clustering(
 
     # Free memory to prevent OOM in subsequent pipeline phases
     from agent.clustering.keyphrases import free_model
+
     free_model()
     import gc
+
     gc.collect()
 
     return {

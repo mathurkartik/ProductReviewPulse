@@ -92,7 +92,9 @@ class MCPSession:
                 log.error("mcp.tool_failed", tool=tool_name, error=str(e))
                 raise
 
-        raise RuntimeError(f"MCP tool {tool_name} failed after {_MAX_RETRIES} retries") from last_error
+        raise RuntimeError(
+            f"MCP tool {tool_name} failed after {_MAX_RETRIES} retries"
+        ) from last_error
 
 
 def call_mcp_tool_sync(url: str, tool_name: str, arguments: dict) -> dict:

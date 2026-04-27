@@ -26,6 +26,7 @@ def free_model():
     global _kw_model
     _kw_model = None
     import gc
+
     gc.collect()
 
 

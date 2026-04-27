@@ -45,7 +45,9 @@ def resolve_document(
 
     # Save to database for next time
     if not doc_id or not isinstance(doc_id, str):
-        raise RuntimeError(f"Failed to create document: no valid document_id returned. Response: {resp}")
+        raise RuntimeError(
+            f"Failed to create document: no valid document_id returned. Response: {resp}"
+        )
 
     set_product_gdoc_id(db_path, product_key, doc_id)
 
@@ -56,6 +58,7 @@ def append_pulse_section(
     session: MCPSession, doc_id: str, summary: PulseSummary, product_display_name: str
 ) -> dict:
     import time
+
     log.info("docs.append_start", doc_id=doc_id)
 
     # 1. Check idempotency (with retry for MCP cold starts)
@@ -100,21 +103,29 @@ def append_pulse_section(
         for el in content_elements:
             if "paragraph" in el:
                 para = el["paragraph"]
-                text = "".join(e.get("textRun", {}).get("content", "") for e in para.get("elements", []) if "textRun" in e)
-                if anchor in text and "paragraphStyle" in para and para["paragraphStyle"].get("namedStyleType") == "HEADING_1":
+                text = "".join(
+                    e.get("textRun", {}).get("content", "")
+                    for e in para.get("elements", [])
+                    if "textRun" in e
+                )
+                if (
+                    anchor in text
+                    and "paragraphStyle" in para
+                    and para["paragraphStyle"].get("namedStyleType") == "HEADING_1"
+                ):
                     heading_id = para["paragraphStyle"].get("headingId")
                     break
 
         deep_link = f"https://docs.google.com/document/d/{doc_id}/edit"
         if heading_id:
             deep_link += f"#heading={heading_id}"
-            
+
         return {
             "status": "skipped",
             "reason": "idempotency",
             "anchor": anchor,
             "deep_link": deep_link,
-            "heading_id": heading_id
+            "heading_id": heading_id,
         }
 
     # 2. Build and send batchUpdate requests
@@ -123,10 +134,10 @@ def append_pulse_section(
 
     log.info("docs.batch_update", doc_id=doc_id, request_count=len(doc_requests))
     result = session.call_tool("docs.batch_update", {"doc_id": doc_id, "requests": doc_requests})
-    
+
     if result.get("status") == "error":
         raise Exception(f"Google Docs batch_update failed: {result.get('message')}")
-        
+
     log.info("docs.append_done", status=result.get("status"))
 
     # 3. Re-fetch to get headingId
@@ -135,12 +146,20 @@ def append_pulse_section(
         post_doc = post_resp.get("document", {})
         post_body = post_doc.get("body", {})
         post_content = post_body.get("content", [])
-        
+
         for el in post_content:
             if "paragraph" in el:
                 para = el["paragraph"]
-                text = "".join(e.get("textRun", {}).get("content", "") for e in para.get("elements", []) if "textRun" in e)
-                if anchor in text and "paragraphStyle" in para and para["paragraphStyle"].get("namedStyleType") == "HEADING_1":
+                text = "".join(
+                    e.get("textRun", {}).get("content", "")
+                    for e in para.get("elements", [])
+                    if "textRun" in e
+                )
+                if (
+                    anchor in text
+                    and "paragraphStyle" in para
+                    and para["paragraphStyle"].get("namedStyleType") == "HEADING_1"
+                ):
                     heading_id = para["paragraphStyle"].get("headingId")
                     break
     except Exception as e:
@@ -150,9 +169,4 @@ def append_pulse_section(
     if heading_id:
         deep_link += f"#heading={heading_id}"
 
-    return {
-        "status": "success",
-        "anchor": anchor,
-        "deep_link": deep_link,
-        "heading_id": heading_id
-    }
+    return {"status": "success", "anchor": anchor, "deep_link": deep_link, "heading_id": heading_id}
