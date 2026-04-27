@@ -35,7 +35,7 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, '');
         const res = await fetch(`${apiUrl}/api/pulse/latest`);
         if (!res.ok) throw new Error(`Failed to fetch: ${res.statusText}`);
         const json = await res.json();
