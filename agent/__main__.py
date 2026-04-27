@@ -143,8 +143,8 @@ def ingest(
                 conn.execute(
                     """
                     INSERT OR REPLACE INTO reviews
-                    (id, product_key, source, external_id, rating, title, body, posted_at, version, language, country, ingested_at, raw_json)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (id, product_key, source, external_id, rating, title, body, posted_at, version, language, country, ingested_at, raw_json, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         rev.id,
@@ -160,6 +160,7 @@ def ingest(
                         rev.country,
                         now.isoformat(),
                         rev.model_dump_json(),
+                        now.isoformat(),
                     ),
                 )
 
