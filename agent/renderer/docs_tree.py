@@ -154,51 +154,20 @@ def generate_doc_requests(
     )
     current_idx += len(who_header)
 
-    # Insert Table (2 columns: Audience, Value)
-    rows_data = [("Audience", "Value")]
+    # What This Solves - Simple text format instead of table to avoid index issues
+    # Use simple text format: "Audience: Value"
     for w in summary.what_this_solves:
-        rows_data.append((w.audience, w.value))
-
-    requests.append(
-        {"insertTable": {"rows": len(rows_data), "columns": 2, "location": {"index": current_idx}}}
-    )
-
-    # Mathematical index tracking for Docs API table cells
-    pointer = current_idx + 3
-
-    for r_idx, (col1, col2) in enumerate(rows_data):
-        # Cell 1
-        requests.append({"insertText": {"location": {"index": pointer}, "text": col1}})
-        if r_idx == 0:
-            requests.append(
-                {
-                    "updateTextStyle": {
-                        "range": {"startIndex": pointer, "endIndex": pointer + len(col1)},
-                        "textStyle": {"bold": True},
-                        "fields": "bold",
-                    }
+        solve_text = f"• {w.audience}: {w.value}\n"
+        requests.append({"insertText": {"location": {"index": current_idx}, "text": solve_text}})
+        requests.append(
+            {
+                "updateParagraphStyle": {
+                    "range": {"startIndex": current_idx, "endIndex": current_idx + len(solve_text)},
+                    "paragraphStyle": {"namedStyleType": "NORMAL_TEXT"},
+                    "fields": "namedStyleType",
                 }
-            )
-        pointer += len(col1) + 3
+            }
+        )
+        current_idx += len(solve_text)
 
-        # Cell 2
-        requests.append({"insertText": {"location": {"index": pointer}, "text": col2}})
-        if r_idx == 0:
-            requests.append(
-                {
-                    "updateTextStyle": {
-                        "range": {"startIndex": pointer, "endIndex": pointer + len(col2)},
-                        "textStyle": {"bold": True},
-                        "fields": "bold",
-                    }
-                }
-            )
-
-        # Move to next row or end of table
-        if r_idx < len(rows_data) - 1:
-            pointer += len(col2) + 5
-        else:
-            pointer += len(col2) + 3
-
-    current_idx = pointer
     return requests
