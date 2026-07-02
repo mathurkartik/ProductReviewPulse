@@ -39,7 +39,13 @@ def _process_review(
 
     body_scrubbed = scrub_pii(body)
     rev_id = hashlib.sha1(f"appstore{external_id}".encode()).hexdigest()
-    return RawReview(
+    try:
+        from langdetect import detect
+        detected_lang = detect(body)
+    except Exception:
+        detected_lang = "en"
+
+    review = RawReview(
         id=rev_id,
         product_key=product_key,
         source="appstore",
@@ -49,9 +55,14 @@ def _process_review(
         body=body_scrubbed,
         posted_at=review_date,
         version=version,
-        language="en",
+        language=detected_lang,
         country="in",
     )
+
+    if review.language and review.language != 'en':
+        return None
+
+    return review
 
 
 def fetch_appstore_reviews(

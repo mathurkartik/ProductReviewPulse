@@ -58,7 +58,7 @@ export default function Dashboard() {
       {/* Top Navigation Bar */}
       <header className="top-nav">
         <div className="top-nav-left">
-          <div className="logo">FinPulse <span>Analytics</span></div>
+          <div className="logo">Weekly Review Pulse</div>
           <nav className="top-links">
             <a href="#" className="active">Reports</a>
             <a href="#">Dashboard</a>
@@ -78,8 +78,8 @@ export default function Dashboard() {
         {/* Sidebar */}
         <aside className="sidebar">
           <div className="sidebar-header">
-            <h2>FinPulse</h2>
-            <span className="subtitle">INTERNAL REVIEW TOOL</span>
+            <h2>Pulse</h2>
+            <span className="subtitle">Automated by Pulse Agent</span>
           </div>
           
           <nav className="side-nav">

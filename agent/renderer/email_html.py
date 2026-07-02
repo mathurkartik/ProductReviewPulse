@@ -34,6 +34,7 @@ def render_emails(
         "window_end": summary.window.end.strftime("%b %d, %Y"),
         "total_reviews": summary.stats.total_reviews,
         "avg_rating": f"{summary.stats.avg_rating:.1f}",
+        "rating_delta": summary.stats.rating_delta_vs_prev,
         "themes": summary.top_themes,
         "action_ideas": summary.action_ideas,
         "quotes": summary.quotes,

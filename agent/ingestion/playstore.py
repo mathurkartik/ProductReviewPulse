@@ -48,7 +48,15 @@ def fetch_playstore_reviews(
             external_id = review.get("reviewId", "")
             rev_id = hashlib.sha1(f"playstore{external_id}".encode()).hexdigest()
 
-            yield RawReview(
+            rev_lang = review.get("language")
+            if not rev_lang:
+                try:
+                    from langdetect import detect
+                    rev_lang = detect(body_text)
+                except Exception:
+                    rev_lang = "en"
+
+            rev = RawReview(
                 id=rev_id,
                 product_key=product_key,
                 source="playstore",
@@ -58,9 +66,14 @@ def fetch_playstore_reviews(
                 body=body_scrubbed,
                 posted_at=review_date,
                 version=review.get("reviewCreatedVersion"),
-                language="en",
+                language=rev_lang,
                 country="in",
             )
+
+            if rev.language and rev.language != 'en':
+                continue
+
+            yield rev
 
         if older_found or not continuation_token:
             break

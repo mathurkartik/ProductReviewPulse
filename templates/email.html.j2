@@ -378,9 +378,7 @@
   <div class="email-wrapper">
     <!-- Header -->
     <div class="header">
-      <div class="header-top">
-        <div class="logo">FinPulse <span>Analytics</span></div>
-      </div>
+        <div class="logo">Weekly Review Pulse</div>
       <h1>{{ product_name }} — Weekly Review Pulse</h1>
       <div class="header-meta">
         <span class="badge">REPORT ID: {{ iso_week }}</span>
@@ -402,6 +400,13 @@
         </div>
         <div class="stat-item">
           <p class="stat-value">{{ avg_rating }}</p>
+          {% if rating_delta is not none %}
+            {% if rating_delta > 0 %}
+              <p style="font-size: 11px; font-weight: 700; color: #00d09c; margin: -4px 0 0 0;">⬆ {{ rating_delta }} vs last week</p>
+            {% elif rating_delta < 0 %}
+              <p style="font-size: 11px; font-weight: 700; color: #ff4757; margin: -4px 0 0 0;">⬇ {{ rating_delta|abs }} vs last week</p>
+            {% endif %}
+          {% endif %}
           <p class="stat-label">Avg Rating</p>
         </div>
       </div>
@@ -468,7 +473,7 @@
     
     <!-- Footer -->
     <div class="footer">
-      <p class="footer-brand">FinPulse Analytics</p>
+      <p class="footer-brand">Weekly Review Pulse</p>
       <p>Automated Weekly Review Pulse • {{ product_name }} • {{ iso_week }}</p>
     </div>
   </div>

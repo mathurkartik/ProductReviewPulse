@@ -247,3 +247,14 @@ def set_run_gmail_id(db_path: Path, run_id: str, message_id: str) -> None:
                 "UPDATE runs SET gmail_message_id=?, updated_at=? WHERE id=?",
                 (message_id, _now_utc(), run_id),
             )
+
+def get_previous_run(db_path: Path, product_key: str, current_iso_week: str) -> sqlite3.Row | None:
+    """Return the most recent published run for this product prior to the current week."""
+    with contextlib.closing(get_connection(db_path)) as conn:
+        row = conn.execute(
+            """SELECT * FROM runs 
+               WHERE product_key = ? AND iso_week < ? AND status = 'published'
+               ORDER BY iso_week DESC LIMIT 1""",
+            (product_key, current_iso_week)
+        ).fetchone()
+    return row

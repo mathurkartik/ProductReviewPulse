@@ -48,7 +48,7 @@ jobs:
             echo "Syncing database to Render..."
             curl -X POST "${MCP_SERVER_URL%/}/api/sync/db" \
               -H "X-Sync-Key: $SYNC_API_KEY" \
-              -F "file=@pulse.sqlite"
+              -F "file=@data/pulse.db"
           else
             echo "Skipping sync: SYNC_API_KEY not set."
           fi

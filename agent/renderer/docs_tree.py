@@ -40,6 +40,28 @@ def generate_doc_requests(
     )
     current_idx += len(title_text)
 
+    # Stats Summary (Sub-heading line)
+    stats_text = f"Analyzed {summary.stats.total_reviews} reviews  |  Avg Rating: {summary.stats.avg_rating:.1f}"
+    if summary.stats.rating_delta_vs_prev is not None:
+        delta = summary.stats.rating_delta_vs_prev
+        if delta > 0:
+            stats_text += f" (⬆ {delta} vs last week)"
+        elif delta < 0:
+            stats_text += f" (⬇ {abs(delta)} vs last week)"
+    stats_text += "\n\n"
+
+    requests.append({"insertText": {"location": {"index": current_idx}, "text": stats_text}})
+    requests.append(
+        {
+            "updateParagraphStyle": {
+                "range": {"startIndex": current_idx, "endIndex": current_idx + len(stats_text)},
+                "paragraphStyle": {"namedStyleType": "NORMAL_TEXT"},
+                "fields": "namedStyleType",
+            }
+        }
+    )
+    current_idx += len(stats_text)
+
     # Heading 2: Top Themes
     themes_header = "Top Themes\n"
     requests.append({"insertText": {"location": {"index": current_idx}, "text": themes_header}})

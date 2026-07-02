@@ -73,6 +73,11 @@ LABEL_THEME_PROMPT = """\
 Given a cluster of app reviews with these keyphrases and a representative (medoid) review, \
 identify a single high-level 'Theme' that captures the core sentiment.
 
+If two clusters appear to cover the same user concern, \
+label them differently enough to be distinct, or note \
+that they should be merged. Never return two themes \
+that say essentially the same thing.
+
 Keyphrases: {keyphrases}
 
 <reviews>
@@ -91,10 +96,20 @@ Return JSON:
 """
 
 SELECT_QUOTES_PROMPT = """\
-From the following app reviews, select EXACTLY 1 quote that best \
-illustrates the theme "{theme_name}". The quote must be a VERBATIM substring \
-copied character-for-character from the review text below. Do NOT fix grammar, \
-spelling, or punctuation.
+Select 1 quote related to the theme "{theme_name}" that meets ALL of these criteria:
+1. Written in English only — no mixed language or transliterated text
+2. Mentions a specific feature, screen, or pain point by name
+3. Prefer reviews rated 2–4 stars — they are more actionable than 
+   1-star rage or 5-star generic praise
+4. Must be a word-for-word substring of the source review text
+5. Must be under 150 characters
+
+Bad quote: "user friendly interface i have a great experience with groww"
+Good quote: "The option chain fails to load even on a stable connection, 
+missed two trades because of this"
+
+If no quotes meet all criteria, relax rule 3 only (allow 1-star or 5-star)
+but never relax rules 1, 2, 4, or 5.
 
 <reviews>
 {reviews_block}
@@ -132,8 +147,20 @@ Based on these themes discovered in this week's reviews for {product}:
 
 {themes_json}
 
-Generate EXACTLY 3 actionable recommendations the product team can act on.
-Keep them very concise (under 15 words each) to ensure the total report stays under 250 words.
+Generate 3 action ideas. Each must:
+1. Name a specific feature, screen, flow, or metric — not a generic process
+2. Reference evidence from the reviews (e.g., "users mention X")
+3. Be actionable by a PM in the next sprint — not a vague engineering task
+
+Format: "{{Action title}}: {{One sentence with specific feature + user evidence}}"
+
+Bad: "Optimize backend processes for faster account growth"
+Good: "Add a progress indicator to the account activation flow — 
+users report waiting without feedback during KYC verification"
+
+Bad: "Enhance Trading Execution"  
+Good: "Fix option chain loading on the trading screen — 
+multiple users report it fails on stable connections during market hours"
 
 Return JSON:
 {{
@@ -309,13 +336,12 @@ class Summarizer:
 
     def run_summarization(self, run_id: str) -> PulseSummary:
         import contextlib
-
         log.info("summarize.start", run_id=run_id)
 
         with contextlib.closing(get_connection(self.settings.env.db_path)) as conn:
             cursor = conn.cursor()
 
-            run = cursor.execute("SELECT * FROM runs WHERE id = ?", (run_id,)).fetchone()
+            run = cursor.execute("SELECT * FROM runs WHERE run_id = ?", (run_id,)).fetchone()
             if not run:
                 raise ValueError(f"Run {run_id} not found")
 
@@ -329,6 +355,15 @@ class Summarizer:
                 "SELECT AVG(rating) FROM reviews WHERE product_key = ?", (product_key,)
             ).fetchone()[0]
             avg_rating = round(avg_rating_row, 2) if avg_rating_row else 0.0
+
+            from agent import storage
+            prev_run = storage.get_previous_run(self.settings.env.db_path, product_key, run["iso_week"])
+            rating_delta = None
+            if prev_run and prev_run["metrics_json"]:
+                prev_metrics = json.loads(prev_run["metrics_json"])
+                prev_avg = prev_metrics.get("avg_rating")
+                if prev_avg:
+                    rating_delta = round(avg_rating - prev_avg, 2)
 
             clusters = cursor.execute(
                 """SELECT * FROM clusters WHERE run_id = ? ORDER BY json_array_length(review_ids_json) DESC LIMIT 6""",
@@ -380,9 +415,7 @@ class Summarizer:
                     review_metadata=metadata,
                     review_pool_for_validation=bodies,
                 )
-                log.info(
-                    "summarize.quotes_selected", theme=theme_data.get("label"), valid=len(quotes)
-                )
+                log.info("summarize.quotes_selected", theme=theme_data.get("label"), valid=len(quotes))
 
                 all_quotes.extend(quotes)
 
@@ -401,11 +434,43 @@ class Summarizer:
                 )
                 discovered_themes.append(theme)
 
-            # Rank themes
-            discovered_themes.sort(
-                key=lambda t: t.review_count * sentiment_score_map.get(t.sentiment, 0.5),
-                reverse=True,
-            )
+            from agent.embeddings import get_provider
+            import numpy as np
+
+            # Sort by review_count descending to establish primary themes
+            discovered_themes.sort(key=lambda t: t.review_count, reverse=True)
+
+            if discovered_themes:
+                provider = get_provider()
+                descriptions = [t.description for t in discovered_themes]
+                embeddings = provider.embed_batch(descriptions)
+
+                merged_indices = set()
+                deduped_themes = []
+
+                for i in range(len(discovered_themes)):
+                    if i in merged_indices:
+                        continue
+
+                    primary = discovered_themes[i]
+                    for j in range(i + 1, len(discovered_themes)):
+                        if j in merged_indices:
+                            continue
+
+                        # LocalBGEProvider normalizes embeddings, so dot product = cosine similarity
+                        sim = float(np.dot(embeddings[i], embeddings[j]))
+                        if sim > 0.80:
+                            secondary = discovered_themes[j]
+                            primary.review_count += secondary.review_count
+                            primary.representative_review_ids.extend(secondary.representative_review_ids)
+                            merged_indices.add(j)
+
+                    deduped_themes.append(primary)
+
+                discovered_themes = deduped_themes
+
+            # After merging, re-rank by review_count descending
+            discovered_themes.sort(key=lambda t: t.review_count, reverse=True)
             top_themes = discovered_themes[:3]
 
             for i, theme in enumerate(top_themes):
@@ -434,7 +499,7 @@ class Summarizer:
             pulse_summary = PulseSummary(
                 product=product_key,
                 window=Window(start=window_start_date, end=window_end_date, weeks=window_weeks),
-                stats=PulseStats(total_reviews=total_reviews, avg_rating=avg_rating),
+                stats=PulseStats(total_reviews=total_reviews, avg_rating=avg_rating, rating_delta_vs_prev=rating_delta),
                 top_themes=top_themes,
                 quotes=all_quotes[:3],
                 action_ideas=action_ideas,
@@ -460,9 +525,11 @@ class Summarizer:
                         ),
                     )
 
+                metrics_dict = self.llm.metrics.model_dump()
+                metrics_dict["avg_rating"] = avg_rating
                 cursor.execute(
                     "UPDATE runs SET metrics_json = ?, status = 'summarized', updated_at = ? WHERE id = ?",
-                    (self.llm.metrics.model_dump_json(), datetime.now(UTC).isoformat(), run_id),
+                    (json.dumps(metrics_dict), datetime.now(UTC).isoformat(), run_id),
                 )
 
         summary_dir = Path("data/summaries")

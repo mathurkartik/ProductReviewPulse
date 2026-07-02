@@ -2,8 +2,8 @@ import './globals.css'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'FinPulse Analytics - Groww Weekly Review',
-  description: 'Internal Review Tool for Groww weekly review pulses.',
+  title: 'Weekly Review Pulse - Groww Weekly Review',
+  description: 'Automated by Pulse Agent for Groww weekly review pulses.',
 }
 
 export default function RootLayout({
