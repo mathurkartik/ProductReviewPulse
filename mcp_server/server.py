@@ -512,7 +512,7 @@ def get_pulse_data(run_id: str):
 
         run = cursor.execute(
 
-            "SELECT * FROM runs WHERE run_id = ?", (run_id,)
+            "SELECT * FROM runs WHERE id = ?", (run_id,)
 
         ).fetchone()
 
@@ -574,7 +574,7 @@ def get_pulse_data(run_id: str):
 
         return {
 
-            "run_id": run["run_id"],
+            "run_id": run["id"],
 
             "product": product["display"] if product else run["product_key"],
 
