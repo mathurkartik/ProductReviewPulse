@@ -460,7 +460,7 @@ def get_latest_pulse_data():
 
         latest_run = cursor.execute(
 
-            "SELECT id FROM runs WHERE status IN ('summarized', 'published') ORDER BY updated_at DESC LIMIT 1"
+            "SELECT id FROM runs WHERE status IN ('summarized', 'rendered', 'published') ORDER BY updated_at DESC LIMIT 1"
 
         ).fetchone()
 
