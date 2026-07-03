@@ -49,9 +49,133 @@ export default function Dashboard() {
     fetchData();
   }, []);
 
-  if (loading) return <div className="loading-state">Loading latest pulse report...</div>;
-  if (error) return <div className="error-state">Error: {error}. Make sure your Render API is live.</div>;
-  if (!data) return <div className="empty-state">No pulse data found.</div>;
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <div className="loading-state" style={{ padding: '2rem', textAlign: 'center', color: '#666' }}>
+          <div style={{ marginBottom: '1rem' }}>
+            <svg className="spinner" width="40" height="40" viewBox="0 0 50 50" style={{ animation: 'spin 1s linear infinite' }}>
+              <circle cx="25" cy="25" r="20" fill="none" stroke="#00D09C" strokeWidth="4" strokeDasharray="90 150" />
+            </svg>
+            <style>{`@keyframes spin { 100% { transform: rotate(360deg); } }`}</style>
+          </div>
+          <h2>Loading latest pulse report...</h2>
+          <p>Waking up the Render server if it's asleep (this can take ~50 seconds).</p>
+        </div>
+      );
+    }
+    
+    if (error) {
+      return (
+        <div className="error-state" style={{ padding: '2rem', color: '#d93025' }}>
+          <h2>Connection Error</h2>
+          <p>Failed to fetch data: {error}</p>
+          <p>Make sure your Render API is live and successfully deployed.</p>
+        </div>
+      );
+    }
+    
+    if (!data) {
+      return <div className="empty-state" style={{ padding: '2rem' }}>No pulse data found.</div>;
+    }
+
+    return (
+      <>
+        {/* Page Header */}
+        <div className="page-header">
+          <div className="header-titles">
+            <h1>{data.product} — Weekly Review Pulse</h1>
+            <div className="header-meta">
+              <span className="badge">WEEK: {data.iso_week}</span>
+              <span className="period">Period: {data.window.start} to {data.window.end}</span>
+            </div>
+          </div>
+          <div className="header-actions">
+            <button className="btn btn-primary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              Export PDF
+            </button>
+            <button className="btn btn-outline">Share Link</button>
+          </div>
+        </div>
+
+        {/* Top Grid Layout */}
+        <div className="grid-layout-top">
+          
+          {/* Top Themes Card */}
+          <div className="card themes-card">
+            <div className="card-header">
+              <h3>Top Themes</h3>
+              <span className="card-subtitle">AGGREGATED SENTIMENT</span>
+            </div>
+            <div className="themes-list">
+              {data.themes.map((theme) => (
+                <div key={theme.id} className={`theme-item theme-${theme.sentiment}`}>
+                  <div className="theme-title-row">
+                    <h4>{theme.label}</h4>
+                    <span className={`tag tag-${theme.sentiment}`}>
+                      <span className="dot"></span> {theme.sentiment.toUpperCase()}
+                    </span>
+                    <span className="trend">{theme.review_count} reviews</span>
+                  </div>
+                  <p>{theme.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Right Column for Sentiment & Actions */}
+          <div className="right-col">
+            
+            {/* Market Sentiment Card */}
+            <div className="card sentiment-card">
+              <div className="card-header">
+                <h3>Overall Status</h3>
+              </div>
+              <div className="sentiment-chart-container">
+                <div className="donut-chart">
+                  <div className="donut-content">
+                    <span className="donut-number" style={{ fontSize: '1.5rem' }}>{data.status.toUpperCase()}</span>
+                  </div>
+                </div>
+              </div>
+              <p className="sentiment-desc">This report was generated for the {data.iso_week} cycle.</p>
+            </div>
+
+            {/* Action Ideas Card Placeholder */}
+            <div className="card action-card">
+              <div className="action-header">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00D09C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18h6"></path><path d="M10 22h4"></path><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"></path></svg>
+                <h3>AI Insights</h3>
+              </div>
+              <div className="action-list">
+                <p style={{ fontSize: '0.9rem', color: '#666', padding: '10px' }}>
+                  Based on {data.themes.length} identified themes, the system is monitoring for operational improvements.
+                </p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        {/* Quotes Section */}
+        <div className="card quotes-card">
+          <div className="card-header">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00D09C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"></path><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"></path></svg>
+            <h3>Real User Voices</h3>
+          </div>
+          <div className="quotes-grid">
+            {data.quotes.map((quote, idx) => (
+              <div key={idx} className="quote-box">
+                <p className="quote-text">"{quote.text}"</p>
+                <p className="quote-author">— Rating: {quote.rating}★ ({quote.source})</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </>
+    );
+  };
 
   return (
     <div>
@@ -111,100 +235,7 @@ export default function Dashboard() {
 
         {/* Main Content */}
         <main className="main-content">
-          
-          {/* Page Header */}
-          <div className="page-header">
-            <div className="header-titles">
-              <h1>{data.product} — Weekly Review Pulse</h1>
-              <div className="header-meta">
-                <span className="badge">WEEK: {data.iso_week}</span>
-                <span className="period">Period: {data.window.start} to {data.window.end}</span>
-              </div>
-            </div>
-            <div className="header-actions">
-              <button className="btn btn-primary">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                Export PDF
-              </button>
-              <button className="btn btn-outline">Share Link</button>
-            </div>
-          </div>
-
-          {/* Top Grid Layout */}
-          <div className="grid-layout-top">
-            
-            {/* Top Themes Card */}
-            <div className="card themes-card">
-              <div className="card-header">
-                <h3>Top Themes</h3>
-                <span className="card-subtitle">AGGREGATED SENTIMENT</span>
-              </div>
-              <div className="themes-list">
-                {data.themes.map((theme) => (
-                  <div key={theme.id} className={`theme-item theme-${theme.sentiment}`}>
-                    <div className="theme-title-row">
-                      <h4>{theme.label}</h4>
-                      <span className={`tag tag-${theme.sentiment}`}>
-                        <span className="dot"></span> {theme.sentiment.toUpperCase()}
-                      </span>
-                      <span className="trend">{theme.review_count} reviews</span>
-                    </div>
-                    <p>{theme.description}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Right Column for Sentiment & Actions */}
-            <div className="right-col">
-              
-              {/* Market Sentiment Card */}
-              <div className="card sentiment-card">
-                <div className="card-header">
-                  <h3>Overall Status</h3>
-                </div>
-                <div className="sentiment-chart-container">
-                  <div className="donut-chart">
-                    <div className="donut-content">
-                      <span className="donut-number" style={{ fontSize: '1.5rem' }}>{data.status.toUpperCase()}</span>
-                    </div>
-                  </div>
-                </div>
-                <p className="sentiment-desc">This report was generated for the {data.iso_week} cycle.</p>
-              </div>
-
-              {/* Action Ideas Card Placeholder */}
-              <div className="card action-card">
-                <div className="action-header">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00D09C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18h6"></path><path d="M10 22h4"></path><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"></path></svg>
-                  <h3>AI Insights</h3>
-                </div>
-                <div className="action-list">
-                  <p style={{ fontSize: '0.9rem', color: '#666', padding: '10px' }}>
-                    Based on {data.themes.length} identified themes, the system is monitoring for operational improvements.
-                  </p>
-                </div>
-              </div>
-
-            </div>
-          </div>
-
-          {/* Quotes Section */}
-          <div className="card quotes-card">
-            <div className="card-header">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00D09C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"></path><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"></path></svg>
-              <h3>Real User Voices</h3>
-            </div>
-            <div className="quotes-grid">
-              {data.quotes.map((quote, idx) => (
-                <div key={idx} className="quote-box">
-                  <p className="quote-text">"{quote.text}"</p>
-                  <p className="quote-author">— Rating: {quote.rating}★ ({quote.source})</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
+          {renderContent()}
         </main>
       </div>
     </div>
