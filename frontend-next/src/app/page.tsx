@@ -23,6 +23,7 @@ interface PulseData {
   iso_week: string;
   status: string;
   window: { start: string; end: string };
+  gdoc_id?: string;
   themes: Theme[];
   quotes: Quote[];
 }
@@ -102,10 +103,16 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="header-actions">
-              <button className="btn btn-primary" onClick={() => window.print()}>
+              <a 
+                href={data.gdoc_id ? `https://docs.google.com/document/d/${data.gdoc_id}/export?format=pdf` : "https://docs.google.com/document/d/1r9e6fHUlUKfdI-IXUjxqd5zOyi3mcHv7KoJjk7chy0s/export?format=pdf"} 
+                className="btn btn-primary"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}
+              >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                 Export PDF
-              </button>
+              </a>
             </div>
           </div>
 

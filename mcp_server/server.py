@@ -573,29 +573,18 @@ def get_pulse_data(run_id: str):
 
 
         return {
-
             "run_id": run["id"],
-
             "product": product["display"] if product else run["product_key"],
-
             "iso_week": run["iso_week"],
-
             "status": run["status"],
-
             "window": {
-
                 "start": run["window_start"],
-
                 "end": run["window_end"]
-
             },
-
+            "gdoc_id": run["gdoc_id"] if "gdoc_id" in run.keys() else None,
             "themes": [dict(t) for t in themes],
-
             "quotes": quotes
-
         }
-
     except Exception as e:
 
         logger.error(f"Error fetching pulse data: {e}")
