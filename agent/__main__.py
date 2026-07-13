@@ -177,18 +177,22 @@ def ingest(
     # CSV Export (Fix 7)
     csv_file = Path("data/raw") / f"{product}_{run_id}.csv"
     with csv_file.open("w", encoding="utf-8", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=["source", "rating", "title", "body", "date", "language", "country"])
+        writer = csv.DictWriter(
+            f, fieldnames=["source", "rating", "title", "body", "date", "language", "country"]
+        )
         writer.writeheader()
         for rev in reviews:
-            writer.writerow({
-                "source": rev.source,
-                "rating": rev.rating,
-                "title": rev.title or "",
-                "body": rev.body,
-                "date": rev.posted_at.isoformat(),
-                "language": rev.language,
-                "country": rev.country,
-            })
+            writer.writerow(
+                {
+                    "source": rev.source,
+                    "rating": rev.rating,
+                    "title": rev.title or "",
+                    "body": rev.body,
+                    "date": rev.posted_at.isoformat(),
+                    "language": rev.language,
+                    "country": rev.country,
+                }
+            )
 
     set_run_status(settings.env.db_path, run_id, "ingested")
     log.info("ingest.done", file=str(audit_file), csv=str(csv_file), count=len(reviews))

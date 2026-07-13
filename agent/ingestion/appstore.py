@@ -41,6 +41,7 @@ def _process_review(
     rev_id = hashlib.sha1(f"appstore{external_id}".encode()).hexdigest()
     try:
         from langdetect import detect
+
         detected_lang = detect(body)
     except Exception:
         detected_lang = "en"
@@ -59,7 +60,7 @@ def _process_review(
         country="in",
     )
 
-    if review.language and review.language != 'en':
+    if review.language and review.language != "en":
         return None
 
     return review

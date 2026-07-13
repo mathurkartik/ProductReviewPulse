@@ -336,6 +336,7 @@ class Summarizer:
 
     def run_summarization(self, run_id: str) -> PulseSummary:
         import contextlib
+
         log.info("summarize.start", run_id=run_id)
 
         with contextlib.closing(get_connection(self.settings.env.db_path)) as conn:
@@ -357,7 +358,10 @@ class Summarizer:
             avg_rating = round(avg_rating_row, 2) if avg_rating_row else 0.0
 
             from agent import storage
-            prev_run = storage.get_previous_run(self.settings.env.db_path, product_key, run["iso_week"])
+
+            prev_run = storage.get_previous_run(
+                self.settings.env.db_path, product_key, run["iso_week"]
+            )
             rating_delta = None
             if prev_run and prev_run["metrics_json"]:
                 prev_metrics = json.loads(prev_run["metrics_json"])
@@ -375,7 +379,6 @@ class Summarizer:
 
             discovered_themes: list[Theme] = []
             all_quotes: list[Quote] = []
-
 
             for c in clusters:
                 cluster_id = c["id"]
@@ -413,7 +416,9 @@ class Summarizer:
                     review_metadata=metadata,
                     review_pool_for_validation=bodies,
                 )
-                log.info("summarize.quotes_selected", theme=theme_data.get("label"), valid=len(quotes))
+                log.info(
+                    "summarize.quotes_selected", theme=theme_data.get("label"), valid=len(quotes)
+                )
 
                 all_quotes.extend(quotes)
 
@@ -461,7 +466,9 @@ class Summarizer:
                         if sim > 0.80:
                             secondary = discovered_themes[j]
                             primary.review_count += secondary.review_count
-                            primary.representative_review_ids.extend(secondary.representative_review_ids)
+                            primary.representative_review_ids.extend(
+                                secondary.representative_review_ids
+                            )
                             merged_indices.add(j)
 
                     deduped_themes.append(primary)
@@ -498,7 +505,11 @@ class Summarizer:
             pulse_summary = PulseSummary(
                 product=product_key,
                 window=Window(start=window_start_date, end=window_end_date, weeks=window_weeks),
-                stats=PulseStats(total_reviews=total_reviews, avg_rating=avg_rating, rating_delta_vs_prev=rating_delta),
+                stats=PulseStats(
+                    total_reviews=total_reviews,
+                    avg_rating=avg_rating,
+                    rating_delta_vs_prev=rating_delta,
+                ),
                 top_themes=top_themes,
                 quotes=all_quotes[:3],
                 action_ideas=action_ideas,

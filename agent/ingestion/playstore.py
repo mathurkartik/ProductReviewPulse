@@ -52,6 +52,7 @@ def fetch_playstore_reviews(
             if not rev_lang:
                 try:
                     from langdetect import detect
+
                     rev_lang = detect(body_text)
                 except Exception:
                     rev_lang = "en"
@@ -70,7 +71,7 @@ def fetch_playstore_reviews(
                 country="in",
             )
 
-            if rev.language and rev.language != 'en':
+            if rev.language and rev.language != "en":
                 continue
 
             yield rev
