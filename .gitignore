@@ -2,6 +2,7 @@
 .env
 mcp_server/credentials.json
 mcp_server/token.json
+mcp_server/token.json.bak
 
 # Runtime data (gitignored per architecture)
 data/raw/
@@ -10,7 +11,7 @@ data/artifacts/
 data/pulse.db
 data/pulse.db-shm
 data/pulse.db-wal
-pulse.sqlite
+# pulse.sqlite is tracked for Render persistence
 *.tmp
 scratch/
 
