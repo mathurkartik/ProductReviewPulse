@@ -164,8 +164,8 @@ def ingest(
                     ),
                 )
 
-    from pathlib import Path
     import csv
+    from pathlib import Path
 
     audit_dir = Path("data/raw") / product
     audit_dir.mkdir(parents=True, exist_ok=True)

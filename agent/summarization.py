@@ -376,8 +376,6 @@ class Summarizer:
             discovered_themes: list[Theme] = []
             all_quotes: list[Quote] = []
 
-            # Sort out sentiment weights since we now use literal negative/mixed/positive
-            sentiment_score_map = {"negative": 1.0, "mixed": 0.5, "positive": 1.0}
 
             for c in clusters:
                 cluster_id = c["id"]
@@ -434,8 +432,9 @@ class Summarizer:
                 )
                 discovered_themes.append(theme)
 
-            from agent.embeddings import get_provider
             import numpy as np
+
+            from agent.embeddings import get_provider
 
             # Sort by review_count descending to establish primary themes
             discovered_themes.sort(key=lambda t: t.review_count, reverse=True)
