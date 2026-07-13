@@ -206,7 +206,7 @@ class LLMClient:
         if self.metrics.llm_cost_usd >= self.cost_cap:
             raise PulseCostExceeded(self.metrics.llm_cost_usd, self.cost_cap)
 
-    def call(self, user_prompt: str, *, max_retries: int = 2) -> dict:
+    def call(self, user_prompt: str, *, max_retries: int = 3) -> dict:
         self._check_cost_cap()
         last_error: Exception | None = None
         for attempt in range(1, max_retries + 1):
@@ -237,7 +237,23 @@ class LLMClient:
                 log.warning("llm.retry", attempt=attempt, max_retries=max_retries, error=str(e))
                 if attempt == max_retries:
                     break
+                # Exponential backoff with rate-limit awareness
+                import time
+                error_str = str(e)
+                if "429" in error_str or "rate_limit" in error_str:
+                    # Try to parse Groq's suggested wait time
+                    wait = 60.0  # default for rate limits
+                    match = re.search(r"try again in (\d+(?:\.\d+)?)s", error_str)
+                    if match:
+                        wait = min(float(match.group(1)), 120.0)
+                    log.info("llm.rate_limit_backoff", wait_seconds=wait)
+                    time.sleep(wait)
+                else:
+                    wait = 5.0 * (4 ** (attempt - 1))  # 5s, 20s, 80s
+                    log.info("llm.backoff", wait_seconds=wait)
+                    time.sleep(wait)
         raise RuntimeError(f"LLM call failed after {max_retries} attempts") from last_error
+
 
 
 def label_theme(
