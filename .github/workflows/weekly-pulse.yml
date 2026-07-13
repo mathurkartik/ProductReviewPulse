@@ -32,6 +32,8 @@ jobs:
           PULSE_ENV: production
           AUTO_APPROVE: "true"
           MCP_SERVER_URL: ${{ secrets.MCP_SERVER_URL }}
+          SYNC_API_KEY: ${{ secrets.SYNC_API_KEY }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
           GMAIL_TO: ${{ secrets.GMAIL_TO }}
         run: |
           # Pass --to only if GMAIL_TO is set

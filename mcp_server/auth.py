@@ -11,31 +11,32 @@ SCOPES = [
     "https://www.googleapis.com/auth/documents",
     "https://www.googleapis.com/auth/gmail.compose",
     "https://www.googleapis.com/auth/gmail.readonly",
-    "https://www.googleapis.com/auth/gmail.labels"
+    "https://www.googleapis.com/auth/gmail.labels",
 ]
+
 
 def get_creds():
     creds = None
-    
+
     # Define paths relative to this script
     token_path = os.path.join(BASE_DIR, "token.json")
     creds_path = os.path.join(BASE_DIR, "credentials.json")
-    
+
     # 1. Load from Individual Environment Variables (Most robust for Render)
     client_id = os.environ.get("GOOGLE_CLIENT_ID")
     client_secret = os.environ.get("GOOGLE_CLIENT_SECRET")
     refresh_token = os.environ.get("GOOGLE_REFRESH_TOKEN")
-    
+
     if client_id and client_secret and refresh_token:
         creds = Credentials(
-            token=None, 
+            token=None,
             refresh_token=refresh_token,
             token_uri="https://oauth2.googleapis.com/token",
             client_id=client_id,
             client_secret=client_secret,
-            scopes=SCOPES
+            scopes=SCOPES,
         )
-    
+
     # 2. Fallback to GOOGLE_TOKEN_JSON blob
     if not creds:
         env_token = os.environ.get("GOOGLE_TOKEN_JSON")
@@ -60,18 +61,22 @@ def get_creds():
                 creds.refresh(Request())
             except Exception as e:
                 if os.environ.get("RENDER"):
-                    raise Exception(f"Failed to refresh Google token: {e}. Check if Client ID/Secret/Refresh Token are correct.")
+                    raise Exception(
+                        f"Failed to refresh Google token: {e}. Check if Client ID/Secret/Refresh Token are correct."
+                    )
                 else:
                     print(f"Refresh failed: {e}")
         else:
             if os.environ.get("RENDER"):
                 msg = "Google Auth failed on Render. Please set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REFRESH_TOKEN environment variables."
                 raise Exception(msg)
-            
+
             # Local flow - check if credentials.json exists
             if not os.path.exists(creds_path):
-                raise FileNotFoundError(f"Missing 'credentials.json' in {BASE_DIR}. Please download it from Google Cloud Console.")
-                
+                raise FileNotFoundError(
+                    f"Missing 'credentials.json' in {BASE_DIR}. Please download it from Google Cloud Console."
+                )
+
             flow = InstalledAppFlow.from_client_secrets_file(creds_path, SCOPES)
             creds = flow.run_local_server(port=0)
 
@@ -79,8 +84,9 @@ def get_creds():
         if not os.environ.get("RENDER"):
             with open(token_path, "w") as token:
                 token.write(creds.to_json())
-                
+
     return creds
+
 
 if __name__ == "__main__":
     print("Starting Google OAuth flow...")

@@ -20,7 +20,13 @@ class MCPSession:
 
     def __init__(self, url: str, *, wake_on_init: bool = True):
         self.base_url = url.rstrip("/")
-        self.client = httpx.Client(timeout=300.0)
+        import os
+
+        api_key = os.environ.get("MCP_API_KEY", os.environ.get("SYNC_API_KEY"))
+        headers = {}
+        if api_key:
+            headers["X-API-Key"] = api_key
+        self.client = httpx.Client(timeout=300.0, headers=headers)
         if wake_on_init:
             self._wake_server()
 
