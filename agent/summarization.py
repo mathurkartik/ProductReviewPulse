@@ -206,7 +206,7 @@ class LLMClient:
         if self.metrics.llm_cost_usd >= self.cost_cap:
             raise PulseCostExceeded(self.metrics.llm_cost_usd, self.cost_cap)
 
-    def call(self, user_prompt: str, *, max_retries: int = 2) -> dict:
+    def call(self, user_prompt: str, *, max_retries: int = 3) -> dict:
         self._check_cost_cap()
         last_error: Exception | None = None
         for attempt in range(1, max_retries + 1):
@@ -234,9 +234,32 @@ class LLMClient:
             except Exception as e:
                 last_error = e
                 self.metrics.retries += 1
-                log.warning("llm.retry", attempt=attempt, max_retries=max_retries, error=str(e))
+                log.warning(
+                    "llm.retry",
+                    attempt=attempt,
+                    max_retries=max_retries,
+                    error=str(e),
+                )
                 if attempt == max_retries:
                     break
+                # Rate-limit-aware backoff
+                import time
+
+                error_str = str(e)
+                if "429" in error_str or "rate_limit" in error_str:
+                    # Parse Groq's suggested wait: "try again in Xm Y.Zs" or "Xs"
+                    wait = 120.0
+                    m = re.search(r"try again in (?:(\d+)m)?(\d+(?:\.\d+)?)s", error_str)
+                    if m:
+                        minutes = int(m.group(1) or 0)
+                        seconds = float(m.group(2))
+                        wait = min(minutes * 60 + seconds + 5, 900.0)
+                    log.info("llm.rate_limit_backoff", wait_seconds=wait)
+                    time.sleep(wait)
+                else:
+                    wait = 5.0 * (4 ** (attempt - 1))
+                    log.info("llm.backoff", wait_seconds=wait)
+                    time.sleep(wait)
         raise RuntimeError(f"LLM call failed after {max_retries} attempts") from last_error
 
 
